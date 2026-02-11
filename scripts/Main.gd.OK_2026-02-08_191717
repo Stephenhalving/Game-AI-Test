@@ -1,0 +1,162 @@
+extends Node2D
+
+const LevelConfig = preload("res://scripts/LevelConfig.gd")
+const RUSHER_SCENE := preload("res://scenes/EnemyRusher.tscn")
+const TANK_SCENE := preload("res://scenes/EnemyTank.tscn")
+const RANGED_SCENE := preload("res://scenes/EnemyRanged.tscn")
+
+const COIN_SCENE := preload("res://scenes/Coin.tscn")
+const FOOD_SCENE := preload("res://scenes/Food.tscn")
+const KEY_SCENE := preload("res://scenes/Key.tscn")
+
+@export var max_enemies := 3
+
+var enemies: Array[Node] = []
+var score := 0
+var wave := 0
+var has_key := false
+var level_id: int = 1
+var cfg: Dictionary = {}
+
+@onready var hud := $HUD
+@onready var door := get_node_or_null("Door")
+
+func _ready() -> void:
+	# --- Level config (F7.2) ---
+	get_tree().paused = false
+	Engine.time_scale = 1.0
+	print("✅ Main READY paused=", get_tree().paused, " time_scale=", Engine.time_scale)
+	var lm := get_node_or_null("/root/LevelManagerAuto")
+	
+	if lm != null:
+		level_id = int(lm.get("current_level"))
+	else:
+		level_id = 1
+
+
+	# OJO: esto requiere que exista LevelConfig.gd y class_name LevelConfig
+	cfg = LevelConfig.get_level(level_id)
+	max_enemies = int(cfg.get("max_enemies", max_enemies))
+
+	# resto igual...
+
+
+	var g = get_node_or_null("Ground")
+	var gy := "NONE"
+	if g:
+		gy = str(g.position.y)
+
+	randomize()
+	if hud and hud.has_method("set_score"):
+		hud.set_score(score)
+	if hud and hud.has_method("set_key"):
+		hud.set_key(false)
+
+	_spawn_to_max()
+
+
+func _spawn_to_max() -> void:
+	_cleanup_dead()
+	while enemies.size() < max_enemies:
+		var scene := _pick_enemy_scene()
+		var e: Node = scene.instantiate()
+		add_child(e)
+		e.name = "Enemy_%d" % Time.get_ticks_msec()
+		e.global_position = Vector2(320 + enemies.size() * 34, 120)
+		enemies.append(e)
+		if e.has_signal("died"):
+			e.died.connect(_on_enemy_died.bind(e))
+
+func _cleanup_dead() -> void:
+	var alive: Array[Node] = []
+	for e in enemies:
+		if e and is_instance_valid(e):
+			alive.append(e)
+	enemies = alive
+
+func _pick_enemy_scene() -> PackedScene:
+	var r := randf()
+	if r < 0.4:
+		return RUSHER_SCENE
+	elif r < 0.7:
+		return TANK_SCENE
+	else:
+		return RANGED_SCENE
+
+func add_score(v: int) -> void:
+	score += v
+	if hud and hud.has_method("set_score"):
+		hud.set_score(score)
+
+func on_key_collected() -> void:
+	has_key = true
+	if hud and hud.has_method("set_key"):
+		hud.set_key(true)
+	if door:
+		door.open()
+
+func _drop_loot(pos: Vector2) -> void:
+	var r := randf()
+	if r < 0.5:
+		var c = COIN_SCENE.instantiate()
+		add_child(c)
+		c.global_position = pos
+	elif r < 0.75:
+		var f = FOOD_SCENE.instantiate()
+		add_child(f)
+		f.global_position = pos
+	else:
+		if not has_key:
+			var k = KEY_SCENE.instantiate()
+			add_child(k)
+			k.global_position = pos
+
+func _on_enemy_died(e: Node) -> void:
+	add_score(100)
+	if e and is_instance_valid(e):
+		call_deferred("_drop_loot", e.global_position)
+	if enemies.has(e):
+		enemies.erase(e)
+	wave += 1
+	_spawn_to_max()
+
+func on_level_complete() -> void:
+	add_score(250)
+	print("✅ STAGE CLEAR +250")
+	await get_tree().create_timer(0.6).timeout
+
+	var lm := get_node_or_null("/root/LevelManagerAuto")
+	if lm:
+		lm.call_deferred("next_level")
+	else:
+		# fallback (por si autoload no existe)
+		get_tree().reload_current_scene()
+
+
+
+# --- Floating damage text (reusable) ---
+func spawn_damage_text(pos: Vector2, amount: int) -> void:
+	# Si existe un nodo/escena DamageText, lo instancia. Si no, usa texto flotante simple.
+	if ResourceLoader.exists("res://scenes/DamageText.tscn"):
+		var dt = preload("res://scenes/DamageText.tscn").instantiate()
+		add_child(dt)
+		dt.global_position = pos
+		if dt.has_method("set_amount"):
+			dt.set_amount(amount)
+		elif dt.has_method("set_text"):
+			dt.set_text(str(amount))
+	else:
+		# fallback: usa spawn_floating_text si está
+		if has_method("spawn_floating_text"):
+			spawn_floating_text(pos, str(amount))
+		else:
+			print("DMG:", amount)
+
+# Alias por compatibilidad
+func spawn_floating_text(pos: Vector2, text: String) -> void:
+	# Si te mandan string, intenta parsear número; sino lo imprime como texto
+	var n := int(text) if text.is_valid_int() else 0
+	if n != 0:
+		spawn_damage_text(pos, n)
+	else:
+		print("FLOAT:", text)

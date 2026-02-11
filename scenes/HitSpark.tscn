@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[node name="HitSpark" type="Node2D"]
+
+[node name="Spark" type="Polygon2D" parent="."]
+polygon = PackedVector2Array(-6,0, -2,-2, 0,-6, 2,-2, 6,0, 2,2, 0,6, -2,2)

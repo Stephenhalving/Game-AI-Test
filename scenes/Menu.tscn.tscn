@@ -1,0 +1,5 @@
+[gd_scene format=3 uid="uid://cl2u1s7teet4v"]
+
+[node name="res___scenes_Menu_tscn" type="Control" unique_id=1284150974]
+layout_mode = 3
+anchors_preset = 0

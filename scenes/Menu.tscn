@@ -1,0 +1,33 @@
+[gd_scene format=3 uid="uid://ppgp5t37xaub"]
+
+[ext_resource type="Script" path="res://scripts/Menu.gd" id="1_xdvgc"]
+
+[node name="Menu" type="Control" unique_id=448811902]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("1_xdvgc")
+
+[node name="VBox" type="VBoxContainer" parent="." unique_id=342203308]
+layout_mode = 0
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -140.0
+offset_top = -60.0
+offset_right = 140.0
+offset_bottom = 60.0
+alignment = 1
+
+[node name="Title" type="Label" parent="VBox" unique_id=863846357]
+layout_mode = 2
+text = "TRUMPQUEST"
+horizontal_alignment = 1
+
+[node name="StartBtn" type="Button" parent="VBox" unique_id=973166093]
+layout_mode = 2
+text = "START"
+
+[connection signal="pressed" from="VBox/StartBtn" to="." method="_on_start_btn_pressed"]

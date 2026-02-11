@@ -1,0 +1,28 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/Door.gd" id="1"]
+
+[sub_resource type="RectangleShape2D" id=1]
+size = Vector2(20, 40)
+
+[sub_resource type="RectangleShape2D" id=2]
+size = Vector2(28, 44)
+
+[node name="Door" type="StaticBody2D"]
+script = ExtResource("1")
+collision_layer = 1
+collision_mask = 0
+
+[node name="Vis" type="Polygon2D" parent="."]
+polygon = PackedVector2Array(-10,-20, 10,-20, 10,20, -10,20)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("1")
+
+[node name="ExitArea" type="Area2D" parent="."]
+monitoring = false
+collision_layer = 0
+collision_mask = 2
+
+[node name="ExitShape" type="CollisionShape2D" parent="ExitArea"]
+shape = SubResource("2")

@@ -1,0 +1,197 @@
+[gd_scene format=3 uid="uid://main"]
+
+[ext_resource type="Script" uid="uid://c8rhnhiurh6fh" path="res://scripts/Main.gd" id="1_main"]
+[ext_resource type="Script" uid="uid://c3rmleacl0lbf" path="res://scripts/Player.gd" id="2_player"]
+[ext_resource type="Script" uid="uid://bb47h8najioyh" path="res://scripts/HUD.gd" id="3_hud"]
+[ext_resource type="PackedScene" path="res://scenes/Door.tscn" id="4_door"]
+
+[sub_resource type="RectangleShape2D" id="1"]
+size = Vector2(16, 24)
+
+[sub_resource type="RectangleShape2D" id="3"]
+size = Vector2(22, 18)
+
+[sub_resource type="Animation" id="Animation_nxtc6"]
+resource_name = "Jump"
+
+[sub_resource type="Animation" id="Animation_rarhs"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Visual/PlayerBody:scale")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(1, 1)]
+}
+
+[sub_resource type="Animation" id="Animation_jlsqs"]
+resource_name = "atk"
+length = 0.13333334
+
+[sub_resource type="Animation" id="Animation_q8u5g"]
+resource_name = "heavy"
+length = 0.16666667
+
+[sub_resource type="Animation" id="Animation_lhr70"]
+resource_name = "hurt"
+length = 0.2
+
+[sub_resource type="Animation" id="Animation_vcsgt"]
+resource_name = "idle"
+length = 0.8
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Visual/PlayerBody:scale")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.4, 0.8),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [Vector2(1, 1), Vector2(1.02, 0.98), Vector2(1, 1)]
+}
+
+[sub_resource type="Animation" id="Animation_c01mt"]
+resource_name = "run"
+length = 0.46666667
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Visual/PlayerBody:scale")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.1, 0.2, 0.3, 0.4),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector2(1, 1), Vector2(1.04, 0.96), Vector2(0.98, 1.02), Vector2(1.04, 0.96), Vector2(1, 1)]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_nxtc6"]
+_data = {
+&"Jump": SubResource("Animation_nxtc6"),
+&"RESET": SubResource("Animation_rarhs"),
+&"atk": SubResource("Animation_jlsqs"),
+&"heavy": SubResource("Animation_q8u5g"),
+&"hurt": SubResource("Animation_lhr70"),
+&"idle": SubResource("Animation_vcsgt"),
+&"run": SubResource("Animation_c01mt")
+}
+
+[sub_resource type="LabelSettings" id="4"]
+font_size = 14
+
+[sub_resource type="RectangleShape2D" id="2"]
+size = Vector2(2000, 80)
+
+[node name="Main" type="Node2D" unique_id=456811435]
+script = ExtResource("1_main")
+
+[node name="Player" type="CharacterBody2D" parent="." unique_id=571391863]
+position = Vector2(200, 120)
+collision_layer = 2
+script = ExtResource("2_player")
+
+[node name="Visual" type="Node2D" parent="Player" unique_id=1580162654]
+
+[node name="PlayerBody" type="Polygon2D" parent="Player/Visual" unique_id=1717555879]
+polygon = PackedVector2Array(-8, -12, 8, -12, 8, 12, -8, 12)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player" unique_id=1505793281]
+shape = SubResource("1")
+
+[node name="AttackArea" type="Area2D" parent="Player" unique_id=1784475754]
+collision_layer = 0
+collision_mask = 4
+monitoring = false
+
+[node name="AttackCollision" type="CollisionShape2D" parent="Player/AttackArea" unique_id=1217131953]
+shape = SubResource("3")
+
+[node name="PickupDetector" type="Area2D" parent="Player" unique_id=1578117889]
+collision_layer = 0
+collision_mask = 4095
+
+[node name="PickupShape" type="CollisionShape2D" parent="Player/PickupDetector" unique_id=725410135]
+shape = SubResource("1")
+
+[node name="Camera2D" type="Camera2D" parent="Player" unique_id=856942792]
+zoom = Vector2(2, 2)
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="Player" unique_id=1431773847]
+libraries/ = SubResource("AnimationLibrary_nxtc6")
+
+[node name="HUD" type="CanvasLayer" parent="." unique_id=1301874049]
+script = ExtResource("3_hud")
+
+[node name="UI" type="Control" parent="HUD" unique_id=880426774]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="PlayerHP" type="ProgressBar" parent="HUD/UI" unique_id=1903989086]
+layout_mode = 0
+offset_left = 12.0
+offset_top = 12.0
+offset_right = 260.0
+offset_bottom = 34.0
+value = 10.0
+
+[node name="EnemyHP" type="ProgressBar" parent="HUD/UI" unique_id=1766198248]
+layout_mode = 0
+offset_left = 12.0
+offset_top = 42.0
+offset_right = 260.0
+offset_bottom = 64.0
+value = 3.0
+
+[node name="ScoreLabel" type="Label" parent="HUD/UI" unique_id=1433540868]
+layout_mode = 0
+offset_left = 280.0
+offset_top = 12.0
+offset_right = 560.0
+offset_bottom = 34.0
+text = "SCORE: 0"
+label_settings = SubResource("4")
+
+[node name="ComboLabel" type="Label" parent="HUD/UI" unique_id=1029904808]
+layout_mode = 0
+offset_left = 280.0
+offset_top = 42.0
+offset_right = 560.0
+offset_bottom = 64.0
+text = "COMBO: -"
+label_settings = SubResource("4")
+
+[node name="KeyLabel" type="Label" parent="HUD/UI" unique_id=811794298]
+layout_mode = 0
+offset_left = 12.0
+offset_top = 72.0
+offset_right = 260.0
+offset_bottom = 94.0
+text = "KEY: NO"
+label_settings = SubResource("4")
+
+[node name="Ground" type="StaticBody2D" parent="." unique_id=209313551]
+position = Vector2(200, 220)
+collision_mask = 0
+
+[node name="GroundBody" type="Polygon2D" parent="Ground" unique_id=1384309610]
+polygon = PackedVector2Array(-1000, -40, 1000, -40, 1000, 40, -1000, 40)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Ground" unique_id=1354188260]
+shape = SubResource("2")
+
+[node name="Door" parent="." unique_id=965898195 instance=ExtResource("4_door")]
+position = Vector2(472, 158)

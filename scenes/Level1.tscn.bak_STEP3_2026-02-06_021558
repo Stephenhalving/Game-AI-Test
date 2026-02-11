@@ -1,0 +1,17 @@
+[gd_scene format=3]
+
+[sub_resource type="RectangleShape2D" id="2"]
+size = Vector2(2000, 80)
+
+[node name="Level1" type="Node2D"]
+
+[node name="Ground" type="StaticBody2D" parent="."]
+position = Vector2(200, 220)
+collision_layer = 1
+collision_mask = 0
+
+[node name="GroundBody" type="Polygon2D" parent="Ground"]
+polygon = PackedVector2Array(-1000, -40, 1000, -40, 1000, 40, -1000, 40)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Ground"]
+shape = SubResource("2")

@@ -1,0 +1,128 @@
+[gd_scene format=3 uid="uid://main"]
+
+[ext_resource type="Script" uid="uid://c8rhnhiurh6fh" path="res://scripts/Main.gd" id="1_main"]
+[ext_resource type="Script" uid="uid://c3rmleacl0lbf" path="res://scripts/Player.gd" id="2_player"]
+[ext_resource type="Script" uid="uid://bb47h8najioyh" path="res://scripts/HUD.gd" id="3_hud"]
+[ext_resource type="PackedScene" path="res://scenes/Door.tscn" id="4_rarhs"]
+
+[sub_resource type="RectangleShape2D" id="1"]
+size = Vector2(16, 24)
+
+[sub_resource type="RectangleShape2D" id="999"]
+size = Vector2(600, 40)
+
+[sub_resource type="LabelSettings" id="3"]
+font_size = 14
+
+[sub_resource type="RectangleShape2D" id="2"]
+
+[node name="Main" type="Node2D" unique_id=222926596]
+script = ExtResource("1_main")
+
+[node name="Player" type="CharacterBody2D" parent="." unique_id=1946714052]
+position = Vector2(200, 120)
+collision_layer = 2
+script = ExtResource("2_player")
+collision_mask = 1
+
+[node name="PlayerBody" type="Polygon2D" parent="Player" unique_id=2054968450]
+position = Vector2(0, 0)
+polygon = PackedVector2Array(-8, -12, 8, -12, 8, 12, -8, 12)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player" unique_id=340005736]
+position = Vector2(0, 0)
+shape = SubResource("1")
+
+[node name="AttackArea" type="Area2D" parent="Player" unique_id=795260289]
+position = Vector2(0, 0)
+collision_mask = 4
+monitoring = false
+
+[node name="AttackCollision" type="CollisionShape2D" parent="Player/AttackArea" unique_id=1294704344]
+position = Vector2(-2, 96)
+shape = SubResource("999")
+
+[node name="PickupDetector" type="Area2D" parent="Player" unique_id=376765684]
+position = Vector2(0, 0)
+collision_layer = 0
+collision_mask = 0
+
+[node name="PickupShape" type="CollisionShape2D" parent="Player/PickupDetector" unique_id=1344623826]
+position = Vector2(-259, 59)
+shape = SubResource("1")
+
+[node name="Camera2D" type="Camera2D" parent="Player" unique_id=1173039868]
+position = Vector2(0, 0)
+zoom = Vector2(2, 2)
+
+[node name="HUD" type="CanvasLayer" parent="." unique_id=335903000]
+script = ExtResource("3_hud")
+
+[node name="UI" type="Control" parent="HUD" unique_id=1995199403]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -91.0
+offset_top = -44.0
+offset_right = -856.0
+offset_bottom = -623.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="PlayerHP" type="ProgressBar" parent="HUD/UI" unique_id=1504575934]
+layout_mode = 0
+offset_left = 12.0
+offset_top = 12.0
+offset_right = 260.0
+offset_bottom = 34.0
+value = 10.0
+
+[node name="EnemyHP" type="ProgressBar" parent="HUD/UI" unique_id=306834894]
+layout_mode = 0
+offset_left = 12.0
+offset_top = 42.0
+offset_right = 260.0
+offset_bottom = 64.0
+value = 3.0
+
+[node name="ScoreLabel" type="Label" parent="HUD/UI" unique_id=111601286]
+layout_mode = 0
+offset_left = 280.0
+offset_top = 12.0
+offset_right = 520.0
+offset_bottom = 34.0
+text = "SCORE: 0"
+label_settings = SubResource("3")
+
+[node name="ComboLabel" type="Label" parent="HUD/UI" unique_id=1908555300]
+layout_mode = 0
+offset_left = 280.0
+offset_top = 42.0
+offset_right = 520.0
+offset_bottom = 64.0
+text = "COMBO: -"
+label_settings = SubResource("3")
+
+[node name="KeyLabel" type="Label" parent="HUD/UI" unique_id=1574536522]
+clip_contents = true
+custom_minimum_size = Vector2(12, 70)
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 23.0
+text = "KEY: NO
+"
+
+[node name="Ground" type="StaticBody2D" parent="." unique_id=690988788]
+position = Vector2(200, 220)
+collision_mask = 0
+collision_layer = 1
+
+[node name="GroundBody" type="Polygon2D" parent="Ground" unique_id=276980292]
+polygon = PackedVector2Array(-300, -20, 300, -20, 300, 20, -300, 20)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Ground" unique_id=1938083641]
+shape = SubResource("2")
+
+[node name="Door" parent="." unique_id=2071541612 instance=ExtResource("4_rarhs")]
+position = Vector2(479, 179)
