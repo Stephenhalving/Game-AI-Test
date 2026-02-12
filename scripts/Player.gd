@@ -66,6 +66,11 @@ func _ready() -> void:
         anim.play("idle")
 
 func _physics_process(delta: float) -> void:
+    # invuln NO debe frenar el movimiento, solo evita daño
+    # (el decremento ya lo hacés más abajo con invuln = max(...))
+    if invuln > 0.0:
+        pass
+
     if Engine.get_physics_frames() % 30 == 0:
         print("🟦 Player tick pos=", global_position, " vel=", velocity)
 
@@ -296,6 +301,7 @@ func take_damage(from_dir: float, dmg: int = 1, knock: float = 360.0) -> void:
     _set_action("HURT", 0.25)
     if hp <= 0:
         _set_action("KO", 1.0)
+        get_tree().call_group("main", "on_player_died")
 
 func _set_action(name: String, seconds: float) -> void:
     last_action = name
@@ -318,3 +324,5 @@ func _shake_cam(intensity: float = 3.0, duration: float = 0.10) -> void:
         cam.position = base + off
         await get_tree().create_timer(step_t).timeout
     cam.position = base
+
+
