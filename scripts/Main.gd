@@ -18,6 +18,7 @@ var has_key := false
 var level_id: int = 1
 var cfg: Dictionary = {}
 
+@export var headless_autoplay: bool = false
 @onready var hud := $HUD
 @onready var door := get_node_or_null("Door")
 
@@ -91,7 +92,7 @@ func _spawn_to_max() -> void:
         e.global_position = Vector2(320 + enemies.size() * 34, 120)
         enemies.append(e)
         if e.has_signal("died"):
-            e.died.connect(_on_enemy_died.bind(e))
+            e.died.connect(func(): _on_enemy_died(e))
 
 func _cleanup_dead() -> void:
     var alive: Array[Node] = []
@@ -158,7 +159,10 @@ func on_level_complete() -> void:
         # fallback (por si autoload no existe)
         get_tree().reload_current_scene()
 
-
+func on_player_died() -> void:
+    print("🔁 RESTARTING SCENE...")
+    await get_tree().create_timer(0.8).timeout
+    get_tree().reload_current_scene()
 
 # --- Floating damage text (reusable) ---
 func spawn_damage_text(pos: Vector2, amount: int) -> void:
@@ -202,23 +206,38 @@ func _on_arena_trigger_body_entered(body: Node) -> void:
     _start_arena()
 
 func _spawn_arena_wave() -> void:
+    print("🧪 _spawn_arena_wave() ENTER")
+
     var spawn_y := 170.0
     var spawns := [
         Vector2(320.0, spawn_y),
         Vector2(370.0, spawn_y),
         Vector2(420.0, spawn_y),
     ]
-    var pool := [ENEMY_RUSHER, ENEMY_TANK, ENEMY_RANGED]
+    var pool: Array[PackedScene] = [ENEMY_RUSHER, ENEMY_TANK, ENEMY_RANGED]
 
     for i in range(spawns.size()):
-        var scene = pool[i % pool.size()]
-        var e = scene.instantiate()
+        var scene: PackedScene = pool[i % pool.size()]
+        var e: Node2D = scene.instantiate()
         add_child(e)
         e.global_position = spawns[i]
 
+        # contar vivos de arena
         arena_wave_left += 1
+
+        # registrar también para respawn general
+        enemies.append(e)
+
+        # marcar como enemigo de arena (opcional)
+        e.add_to_group("arena_enemy")
+
+        print("🧪 spawned arena enemy #", i, " wave_left=", arena_wave_left)
+
         if e.has_signal("died"):
+            # 1) contador de arena
             e.died.connect(_on_arena_enemy_died)
+            # 2) sistema general (score/loot/respawn)
+            e.died.connect(func(): _on_enemy_died(e))
 
 func _on_arena_enemy_died() -> void:
     arena_wave_left -= 1
@@ -238,29 +257,13 @@ func _on_arena_enemy_died() -> void:
 func _start_arena() -> void:
     arena_active = true
     arena_cleared = false
+    arena_wave_left = 0
 
-    arena_wave_left = 3
-    print("🟧 ARENA START enemies=", arena_wave_left)
+    print("🧪 _start_arena() -> calling _spawn_arena_wave()")
+    _spawn_arena_wave()
 
     if door_node and door_node.has_method("set_locked"):
-        door_node.call("set_locked", true)
-
-    var player := get_node_or_null("Player")
-    var base_pos := Vector2(300, 160)
-    if player:
-        base_pos = player.global_position
-
-    for i in range(arena_wave_left):
-        var scene_to_spawn: PackedScene = ENEMY_RUSHER
-        if i == 1:
-            scene_to_spawn = ENEMY_RANGED
-        elif i == 2:
-            scene_to_spawn = ENEMY_TANK
-
-        var e := scene_to_spawn.instantiate()
-        add_child(e)
-        e.global_position = base_pos + Vector2(120 + i * 30, 0)
-        e.add_to_group("arena_enemy")
+        door_node.call("set_locked", true)    
 
 func _set_door_exit_enabled(enabled: bool) -> void:
     if door_node == null:
