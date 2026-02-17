@@ -17,7 +17,14 @@ var wave := 0
 var has_key := false
 var level_id: int = 1
 var cfg: Dictionary = {}
+var arena_active := false
+var arena_cleared := false
+var arena_wave_index := 0
+var arena_total_waves := 3
+var arena_wave_left := 0
+var arena_waiting_next_wave := false
 
+@onready var arena_spawn_points := get_tree().get_nodes_in_group("arena_spawn")
 @export var headless_autoplay: bool = false
 @onready var hud := $HUD
 @onready var door := get_node_or_null("Door")
@@ -29,10 +36,6 @@ const ENEMY_RANGED := preload("res://scenes/EnemyRanged.tscn")
 
 @onready var arena_trigger: Area2D = get_node_or_null("Level/ArenaTrigger")
 @onready var door_node: Node = get_node_or_null("Door")
-
-var arena_active: bool = false
-var arena_cleared: bool = false
-var arena_wave_left: int = 0
 
 func _ready() -> void:
     print("🧱 Main._ready() ENTER")
@@ -81,6 +84,91 @@ func _ready() -> void:
     if DisplayServer.get_name() == "headless":
         print("🧪 HEADLESS: forcing arena start for test")
         _start_arena()
+
+func _lock_door(locked: bool) -> void:
+    # locked=true => door closed
+    # locked=false => door open
+    if door_node == null:
+        push_warning("Door node not found. Skipping lock/unlock.")
+        return
+
+    if locked:
+        # close door
+        if door_node.has_method("set"):
+            door_node.set("is_open", false)
+        elif door_node.has_method("close"):
+            door_node.call("close")
+        # intentar forzar update si existe
+        if door_node.has_method("_update_state_deferred"):
+            door_node.call("_update_state_deferred")
+        return
+
+    # unlock => open door
+    if door_node.has_method("open"):
+        door_node.call("open")
+        return
+
+    # fallback: set flag and update
+    if door_node.has_method("set"):
+        door_node.set("is_open", true)
+        if door_node.has_method("_update_state_deferred"):
+            door_node.call("_update_state_deferred")
+
+func _start_arena():
+    if arena_active:
+        return
+
+    arena_cleared = false
+    arena_wave_index = 0
+    arena_total_waves = 3 # por ahora fijo
+
+    _lock_door(true)
+    _spawn_next_wave()
+
+func _spawn_next_wave():
+    arena_wave_index += 1
+    if arena_wave_index > arena_total_waves:
+        _finish_arena()
+        return
+
+    var plan := _build_wave_plan(arena_wave_index)
+    arena_wave_left = plan.size()
+
+    for enemy_scene_path in plan:
+        _spawn_enemy_from_path(enemy_scene_path)
+
+func _build_wave_plan(wave: int) -> Array:
+    var rusher := "res://scenes/EnemyRusher.tscn"
+    var tank := "res://scenes/EnemyTank.tscn"
+    var ranged := "res://scenes/EnemyRanged.tscn"
+
+    match wave:
+        1:
+            return [rusher, rusher, rusher]
+        2:
+            return [rusher, rusher, ranged]
+        3:
+            return [tank, rusher, rusher]
+        _:
+            return [tank, ranged, rusher, rusher]
+
+func _spawn_enemy_from_path(scene_path: String):
+    var packed := load(scene_path)
+    if packed == null:
+        push_error("Enemy scene not found: %s" % scene_path)
+        return
+
+    var enemy: Node = packed.instantiate()
+    add_child(enemy)
+
+    # spawn pos
+    var pos := _pick_arena_spawn_position()
+    if enemy is Node2D:
+        enemy.global_position = pos
+
+    # connect died
+    if enemy.has_signal("died"):
+        enemy.connect("died", Callable(self, "_on_arena_enemy_died").bind(enemy))
 
 func _spawn_to_max() -> void:
     _cleanup_dead()
@@ -146,6 +234,13 @@ func _on_enemy_died(e: Node) -> void:
         enemies.erase(e)
     wave += 1
     _spawn_to_max()
+
+func _pick_arena_spawn_position() -> Vector2:
+    if arena_spawn_points.size() > 0:
+        var sp := arena_spawn_points[randi() % arena_spawn_points.size()]
+        if sp is Node2D:
+            return sp.global_position
+    return Vector2.ZERO
 
 func on_level_complete() -> void:
     add_score(250)
@@ -239,22 +334,36 @@ func _spawn_arena_wave() -> void:
             # 2) sistema general (score/loot/respawn)
             e.died.connect(func(): _on_enemy_died(e))
 
-func _on_arena_enemy_died() -> void:
+func _on_arena_enemy_died(enemy):
     arena_wave_left -= 1
-    print("🟥 ARENA LEFT=", arena_wave_left)
 
     if arena_wave_left <= 0:
-        arena_active = false
-        arena_cleared = true
-        print("🟩 ARENA CLEARED")
+        if arena_waiting_next_wave:
+            return
+        arena_waiting_next_wave = true
 
-        _set_door_exit_enabled(true)
+        await get_tree().create_timer(1.25).timeout
 
-        # feedback opcional si ya existe en tu Main.gd
-        if has_method("spawn_floating_text"):
-            spawn_floating_text(Vector2(360, 90), "GO!")
+        arena_waiting_next_wave = false
+        _spawn_next_wave()
 
-func _start_arena() -> void:
+func _finish_arena():
+    arena_active = false
+    arena_cleared = true
+
+    # ✅ dar llave SOLO al finalizar la arena
+    _grant_arena_key()
+
+    _lock_door(false)
+
+func _grant_arena_key() -> void:
+    if has_key:
+        return
+    has_key = true
+    if hud and hud.has_method("set_key"):
+        hud.set_key(true)
+
+func _start_arena_legacy():
     arena_active = true
     arena_cleared = false
     arena_wave_left = 0
