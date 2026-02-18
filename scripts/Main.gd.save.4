@@ -1,6 +1,6 @@
 extends Node2D
 
-const LevelConfigScript = preload("res://scripts/LevelConfig.gd")
+const LevelConfig = preload("res://scripts/LevelConfig.gd")
 const RUSHER_SCENE := preload("res://scenes/EnemyRusher.tscn")
 const TANK_SCENE := preload("res://scenes/EnemyTank.tscn")
 const RANGED_SCENE := preload("res://scenes/EnemyRanged.tscn")
@@ -27,11 +27,9 @@ var arena_wave_index := 0
 var arena_total_waves := 3
 var arena_wave_left := 0
 var arena_waiting_next_wave := false
-var _headless_timer: Timer = null
+
 var arena_spawn_points: Array = []
-var arena_enemies: Array[Node] = []
 @export var headless_autoplay: bool = false
-@export var debug_force_arena_start: bool = false
 @onready var hud := $HUD
 @onready var door := get_node_or_null("Door")
 
@@ -44,23 +42,15 @@ const ENEMY_RANGED := preload("res://scenes/EnemyRanged.tscn")
 @onready var door_node: Node = get_node_or_null("Door")
 
 func _ready() -> void:
-    var is_headless := DisplayServer.get_name() == "headless"
-    var run_headless_test := is_headless and (OS.get_environment("TQ_HEADLESS_TEST") == "1")
-    
-    if not is_headless:
-        print("🧱 Main._ready() ENTER")
-        print("🧱 arena_trigger=", arena_trigger)
-        print("🧱 arena_trigger_path=", str(arena_trigger.get_path()) if arena_trigger else "NULL")
-        print("✅ Main READY paused=", get_tree().paused, " time_scale=", Engine.time_scale)    
+    print("🧱 Main._ready() ENTER")
+    print("🧱 arena_trigger=", arena_trigger)
+    print("🧱 arena_trigger_path=", arena_trigger.get_path() if arena_trigger else "NULL")
     add_to_group("main")
-
-    if not is_headless and debug_force_arena_start:
-        print("🧪 DEBUG: forcing arena start (editor run)")
-        call_deferred("_start_arena")
 
     # --- Level config (F7.2) ---
     get_tree().paused = false
     Engine.time_scale = 1.0
+    print("✅ Main READY paused=", get_tree().paused, " time_scale=", Engine.time_scale)
     var lm := get_node_or_null("/root/LevelManagerAuto")
     
     if lm != null:
@@ -76,7 +66,7 @@ func _ready() -> void:
         print("🟥 ArenaTrigger missing or already connected: ", arena_trigger)
 
     # OJO: esto requiere que exista LevelConfig.gd y class_name LevelConfig
-    cfg = LevelConfigScript.get_level(level_id)
+    cfg = LevelConfig.get_level(level_id)
     max_enemies = int(cfg.get("max_enemies", max_enemies))
 
     arena_spawn_points = []
@@ -101,117 +91,60 @@ func _ready() -> void:
 
     _spawn_to_max()
 
-    if run_headless_test:
+    if DisplayServer.get_name() == "headless":
         print("🧪 HEADLESS: forcing arena start for test")
         call_deferred("_headless_test_run")
         return
 
-    if DisplayServer.get_name() != "headless":
-        call_deferred("_start_arena")
-
 func _headless_test_run() -> void:
     print("🧪 HEADLESS: _headless_test_run() ENTER")
 
-    # limpiar enemigos legacy para test determinístico
-    for e in enemies:
-        if e and is_instance_valid(e):
-            e.queue_free()
-    enemies.clear()
-    await get_tree().process_frame
-
+    # arrancar arena
     _start_arena()
 
-    # correr waves hasta que termine (con safety)
-    var safety := 0
-    while arena_active and safety < 10:
-        safety += 1
+    # esperar para que spawnee y corra
+    await get_tree().create_timer(6.0, false, true).timeout
 
-        # esperar a que spawnee completa la wave actual (spawn escalonado)
-        var t := 0.0
-        while t < 5.0 and (arena_wave_left <= 0 or arena_enemies.size() < arena_wave_left):
-            await _wait(0.1)
-            t += 0.1
-
-        print("🧪 HEADLESS WAVE READY:",
-            " wave_index=", arena_wave_index,
-            " expected=", arena_wave_left,
-            " spawned=", arena_enemies.size(),
-            " waited=", t
-        )
-
-        # simular matar a todos los de esta wave
-        for e2 in arena_enemies:
-            if e2 and is_instance_valid(e2):
-                if e2.has_signal("died"):
-                    e2.emit_signal("died")
-                e2.queue_free()
-        arena_enemies.clear()
-
-        # dejar que procese callbacks y spawnee siguiente
-        await _wait(1.8)
-
-        if not arena_active:
-            break
-
-    print("🧪 HEADLESS FINAL:",
+    # log de estado (no importa si alguna variable falla, lo ajustamos)
+    print("🧪 HEADLESS STATUS:",
         " arena_active=", arena_active,
-        " arena_cleared=", arena_cleared,
-        " wave_index=", arena_wave_index,
-        " wave_left=", arena_wave_left,
-        " has_key=", has_key
+        " arena_wave_left=", arena_wave_left,
+        " enemies=", enemies.size()
     )
 
     print("🧪 HEADLESS: quitting")
-    call_deferred("_headless_quit")
-    return
+    get_tree().quit()
 
 func _lock_door(locked: bool) -> void:
+    # locked=true => door closed
+    # locked=false => door open
     if door_node == null:
         push_warning("Door node not found. Skipping lock/unlock.")
         return
 
-    # Preferir API explícita del Door.gd
-    if door_node.has_method("set_locked"):
-        door_node.call("set_locked", locked)
-        return
-
     if locked:
-        if door_node.has_method("close"):
-            door_node.call("close")
-            return
-    else:
-        if door_node.has_method("open"):
-            door_node.call("open")
-            return
-
-    # Fallback: si Door.gd usa una propiedad, intentamos estas comunes
-    if door_node.has_method("_update_state_deferred"):
+        # close door
         if door_node.has_method("set"):
-            door_node.set("locked", locked)
-            door_node.set("is_open", not locked)
-        door_node.call("_update_state_deferred")
-
-func _start_arena() -> void:
-    print("🟩 _start_arena() CALLED spawn_points=", arena_spawn_points.size())
-    if arena_active or arena_cleared:
+            door_node.set("is_open", false)
+        elif door_node.has_method("close"):
+            door_node.call("close")
+        # intentar forzar update si existe
+        if door_node.has_method("_update_state_deferred"):
+            door_node.call("_update_state_deferred")
         return
 
-    arena_active = true
-    arena_waiting_next_wave = false
-    arena_wave_left = 0
+    # unlock => open door
+    if door_node.has_method("open"):
+        door_node.call("open")
+        return
 
-    # refrescar spawn points (por orden de carga / groups)
-    arena_spawn_points = get_tree().get_nodes_in_group("arena_spawn")
-    print("🧭 arena_spawn_points(start_arena)=", arena_spawn_points.size())
-    for n in arena_spawn_points:
-        print("🧭 spawn:", n.name)
+    # fallback: set flag and update
+    if door_node.has_method("set"):
+        door_node.set("is_open", true)
+        if door_node.has_method("_update_state_deferred"):
+            door_node.call("_update_state_deferred")
 
-    arena_cleared = false
-    arena_wave_index = 0
-    arena_total_waves = 3 # por ahora fijo
 
-    _lock_door(true)
-    _spawn_next_wave()
 
 func _spawn_next_wave():
     # Beat pause (Scott Pilgrim vibe)
@@ -236,17 +169,15 @@ func _spawn_next_wave():
         await get_tree().create_timer(0.35).timeout
 
 func _spawn_to_max() -> void:
-    # No spawnear enemigos generales durante arena
-    if arena_active:
-        return
+    # Wrapper: el spawner general usa la versión legacy
     _spawn_to_max_legacy()
 
-func _build_wave_plan(wave_num: int) -> Array:
+func _build_wave_plan(wave: int) -> Array:
     var rusher := "res://scenes/EnemyRusher.tscn"
     var tank := "res://scenes/EnemyTank.tscn"
     var ranged := "res://scenes/EnemyRanged.tscn"
 
-    match wave_num:
+    match wave:
         1:
             return [rusher, rusher, rusher]
         2:
@@ -263,18 +194,7 @@ func _spawn_enemy_from_path(scene_path: String):
         return
 
     var enemy: Node = packed.instantiate()
-
-    var level := get_node_or_null("Level")
-    if level:
-        level.add_child(enemy)
-    else:
-        add_child(enemy)
-
-    arena_enemies.append(enemy)
-
-    # asegurar que se vea por encima del fondo si hace falta
-    if enemy is CanvasItem:
-        (enemy as CanvasItem).z_index = 20
+    add_child(enemy)
 
     var sp2: Node2D = _pick_arena_spawn_point()
     var pos: Vector2 = sp2.global_position if sp2 != null else Vector2.ZERO
@@ -303,26 +223,16 @@ func _spawn_enemy_from_path(scene_path: String):
         n.global_position = start_pos
         create_tween().tween_property(n, "global_position", pos, 0.28)
 
-    # connect died (arena)
+    # connect died
     if enemy.has_signal("died"):
-        if not enemy.died.is_connected(_on_arena_enemy_died):
-            enemy.died.connect(_on_arena_enemy_died)
+        enemy.connect("died", Callable(self, "_on_arena_enemy_died").bind(enemy))
 
 func _spawn_to_max_legacy() -> void:
     _cleanup_dead()
     while enemies.size() < max_enemies:
         var scene := _pick_enemy_scene()
         var e: Node = scene.instantiate()
-
-        var level2 := get_node_or_null("Level")
-        if level2:
-            level2.add_child(e)
-        else:
-            add_child(e)
-
-        if e is CanvasItem:
-            (e as CanvasItem).z_index = 20
-
+        add_child(e)
         e.name = "Enemy_%d" % Time.get_ticks_msec()
         e.global_position = Vector2(320 + enemies.size() * 34, 120)
         enemies.append(e)
@@ -395,9 +305,6 @@ func _pick_arena_spawn_position() -> Vector2:
     return Vector2.ZERO
 
 func on_level_complete() -> void:
-    if DisplayServer.get_name() == "headless":
-        return
-
     add_score(250)
     print("✅ STAGE CLEAR +250")
     await get_tree().create_timer(0.6).timeout
@@ -442,21 +349,17 @@ func spawn_floating_text(pos: Vector2, text: String) -> void:
         print("FLOAT:", text)
 
 func _on_arena_trigger_body_entered(body: Node) -> void:
-    print("🟨 ArenaTrigger ENTER -> body=", body, " name=", body.name)
-
     if arena_active or arena_cleared:
-        print("🟥 blocked: arena_active or cleared")
         return
-
     if body == null:
-        print("🟥 blocked: body null")
         return
-
     if not body.is_in_group("player"):
-        print("🟥 blocked: body not in group 'player'")
+        return    
+    # solo el Player activa
+    if body.name != "Player":
         return
 
-    print("🟩 ArenaTrigger OK -> START ARENA")
+    print("🟨 ArenaTrigger ENTER -> START ARENA")
     _start_arena()
 
 func _spawn_arena_wave_legacy() -> void:
@@ -494,7 +397,7 @@ func _spawn_arena_wave_legacy() -> void:
         # spawn escalonado (Scott Pilgrim feel)
         await get_tree().create_timer(0.35).timeout
 
-func _on_arena_enemy_died(_arg = null) -> void:
+func _on_arena_enemy_died(enemy):
     arena_wave_left -= 1
 
     if arena_wave_left <= 0:
@@ -542,29 +445,3 @@ func _set_door_exit_enabled(enabled: bool) -> void:
     var exit_area: Area2D = door_node.get_node_or_null("ExitArea")
     if exit_area:
         exit_area.set_deferred("monitoring", enabled)
-
-func _headless_quit() -> void:
-    if _headless_timer and is_instance_valid(_headless_timer):
-        _headless_timer.queue_free()
-        _headless_timer = null
-
-    get_tree().quit()
-
-func _headless_get_timer() -> Timer:
-    if _headless_timer and is_instance_valid(_headless_timer):
-        return _headless_timer
-    var t := Timer.new()
-    t.one_shot = true
-    add_child(t)
-    _headless_timer = t
-    return t
-
-func _wait(seconds: float) -> void:
-    if DisplayServer.get_name() == "headless":
-        var t := _headless_get_timer()
-        t.stop()
-        t.wait_time = seconds
-        t.start()
-        await t.timeout
-    else:
-        await get_tree().create_timer(seconds).timeout

@@ -1,4 +1,4 @@
-extends "res://scripts/EnemyBase.gd"
+extends EnemyBase
 
 @export var rusher_speed: float = 150.0
 

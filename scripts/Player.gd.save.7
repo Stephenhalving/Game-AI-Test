@@ -1,5 +1,11 @@
 extends CharacterBody2D
 
+@export var hp_max: int = 5
+var hp: int = 5
+
+vainvuln_time: float = 0.0
+@export var invuln_duration: float = 0.6
+
 @export var speed := 170.0
 @export var gravity := 1200.0
 @export var jump_velocity := -420.0
@@ -11,8 +17,6 @@ var facing := 1.0
 var invuln := 0.0
 var hurt_timer := 0.0
 var hurt_knock_x := 0.0
-
-var _debug_ticks := true
 
 var last_action := "IDLE"
 # bloquea el auto-switch idle/run por un ratito (para ataques, hurt, etc.)
@@ -68,14 +72,11 @@ func _ready() -> void:
         anim.play("idle")
 
 func _physics_process(delta: float) -> void:
-    # invuln NO debe frenar el movimiento, solo evita daño
-    # (el decremento ya lo hacés más abajo con invuln = max(...))
-    if invuln > 0.0:
-        pass
+    if invuln_time > 0.0:
+        invuln_time -= delta
 
     if Engine.get_physics_frames() % 30 == 0:
-        if DisplayServer.get_name() != "headless":
-            print("🟦 Player tick pos=", global_position, " vel=", velocity)
+        print("🟦 Player tick pos=", global_position, " vel=", velocity)
 
     # --- INPUT (locals first to avoid parser issues) ---
     var dir := Input.get_axis("move_left", "move_right")
@@ -172,12 +173,12 @@ func _physics_process(delta: float) -> void:
                     anim.play("idle")
    
     # DEBUG piso (cada ~0.5s)
-    if DisplayServer.get_name() != "headless": if Engine.get_physics_frames() % 30 == 0:
+    if Engine.get_physics_frames() % 30 == 0:
         print("floor=", is_on_floor(), " pos=", global_position, " vel=", velocity)
 
     move_and_slide()
 
-    if DisplayServer.get_name() != "headless": if Engine.get_physics_frames() % 30 == 0 and floor_ray:
+    if Engine.get_physics_frames() % 30 == 0 and floor_ray:
        print("floor_ray=", floor_ray.is_colliding(), " on_floor=", is_on_floor(), " vel=", velocity)
 
     # blink invuln
@@ -303,17 +304,7 @@ func take_damage(from_dir: float, dmg: int = 1, knock: float = 360.0) -> void:
     hurt_knock_x = knock * from_dir
     _set_action("HURT", 0.25)
     if hp <= 0:
-        hp = 0
-        state = State.KO
         _set_action("KO", 1.0)
-
-        var main := get_tree().current_scene
-        if main and main.has_method("on_player_died"):
-            main.call_deferred("on_player_died")
-        else:
-            # fallback ultra seguro
-            get_tree().reload_current_scene()
-        return
 
 func _set_action(name: String, seconds: float) -> void:
     last_action = name

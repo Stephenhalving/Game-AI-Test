@@ -1,4 +1,4 @@
-extends "res://scripts/EnemyBase.gd"
+extends EnemyBase
 
 @export var tank_speed: float = 80.0
 

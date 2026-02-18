@@ -6,11 +6,11 @@ extends Label
 var t: float = 0.0
 
 func _ready() -> void:
-	set_process(true)
+    set_process(true)
 
 func _process(delta: float) -> void:
-	t += delta
-	position.y -= rise_speed * delta
-	modulate.a = 1.0 - (t / lifetime)
-	if t >= lifetime:
-		queue_free()
+    t += delta
+    position.y -= rise_speed * delta
+    modulate.a = 1.0 - (t / lifetime)
+    if t >= lifetime:
+        queue_free()

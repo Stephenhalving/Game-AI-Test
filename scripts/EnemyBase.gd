@@ -41,166 +41,174 @@ var tech_cd: float = 0.0
 var player: Node2D = null
 
 func _ready() -> void:
-	add_to_group("enemies")
-	hp = hp_max
-	attack_area.monitoring = false
-	if not attack_area.body_entered.is_connected(_on_attack_area_body_entered):
-		attack_area.body_entered.connect(_on_attack_area_body_entered)
+    add_to_group("enemies")
+    hp = hp_max
+    attack_area.monitoring = false
+    if not attack_area.body_entered.is_connected(_on_attack_area_body_entered):
+        attack_area.body_entered.connect(_on_attack_area_body_entered)
 
 func _physics_process(delta: float) -> void:
-	atk_cd = max(0.0, atk_cd - delta)
+    atk_cd = max(0.0, atk_cd - delta)
 
-	# timers
-	hitstun = max(0.0, hitstun - delta)
-	stun_timer = max(0.0, stun_timer - delta)
-	down_timer = max(0.0, down_timer - delta)
-	getup_timer = max(0.0, getup_timer - delta)
-	invuln_timer = max(0.0, invuln_timer - delta)
-	juggle_immunity = max(0.0, juggle_immunity - delta)
-	tech_cd = max(0.0, tech_cd - delta)
+    # timers
+    hitstun = max(0.0, hitstun - delta)
+    stun_timer = max(0.0, stun_timer - delta)
+    down_timer = max(0.0, down_timer - delta)
+    getup_timer = max(0.0, getup_timer - delta)
+    invuln_timer = max(0.0, invuln_timer - delta)
+    juggle_immunity = max(0.0, juggle_immunity - delta)
+    tech_cd = max(0.0, tech_cd - delta)
 
-	velocity.y += gravity * delta
+    velocity.y += gravity * delta
 
-	if player == null:
-		player = _find_player()
+    if player == null:
+        player = _find_player()
 
-	# TECH (jump): levantada rápida (con ventana + cooldown)
-	if Input.is_action_just_pressed("jump") and tech_cd <= 0.0:
-		# ventana: solo al inicio del knockdown
-		if down_timer > 0.35:
-			down_timer = min(down_timer, 0.10)
-			invuln_timer = max(invuln_timer, 0.22)
-			tech_cd = 0.60
-			var main := get_tree().current_scene
-			if main and main.has_method("spawn_floating_text"):
-				main.spawn_floating_text(global_position + Vector2(0, -18), "TECH!")
-		elif getup_timer > 0.0:
-			getup_timer = min(getup_timer, 0.14)
-			invuln_timer = max(invuln_timer, 0.22)
-			tech_cd = 0.60
+    # TECH (jump): levantada rápida (con ventana + cooldown)
+    if Input.is_action_just_pressed("jump") and tech_cd <= 0.0:
+        # ventana: solo al inicio del knockdown
+        if down_timer > 0.35:
+            down_timer = min(down_timer, 0.10)
+            invuln_timer = max(invuln_timer, 0.22)
+            tech_cd = 0.60
+            var main := get_tree().current_scene
+            if main and main.has_method("spawn_floating_text"):
+                main.spawn_floating_text(global_position + Vector2(0, -18), "TECH!")
+        elif getup_timer > 0.0:
+            getup_timer = min(getup_timer, 0.14)
+            invuln_timer = max(invuln_timer, 0.22)
+            tech_cd = 0.60
 
 
-	# transición DOWN -> GETUP
-	if was_down and down_timer <= 0.0:
-		was_down = false
-		getup_timer = 0.28
-		invuln_timer = 0.28
-		attack_area.set_deferred("monitoring", false)
+    # transición DOWN -> GETUP
+    if was_down and down_timer <= 0.0:
+        was_down = false
+        getup_timer = 0.28
+        invuln_timer = 0.28
+        attack_area.set_deferred("monitoring", false)
 
-	# estados (prioridad)
-	if down_timer > 0.0:
-		velocity.x = 0.0
-		attack_area.set_deferred("monitoring", false)
-	elif getup_timer > 0.0:
-		velocity.x = 0.0
-		attack_area.set_deferred("monitoring", false)
-	elif stun_timer > 0.0:
-		velocity.x = knock_x
-		attack_area.set_deferred("monitoring", false)
-	elif hitstun > 0.0:
-		velocity.x = knock_x
-	else:
-		_process_ai(delta)
+    # estados (prioridad)
+    if down_timer > 0.0:
+        velocity.x = 0.0
+        attack_area.set_deferred("monitoring", false)
+    elif getup_timer > 0.0:
+        velocity.x = 0.0
+        attack_area.set_deferred("monitoring", false)
+    elif stun_timer > 0.0:
+        velocity.x = knock_x
+        attack_area.set_deferred("monitoring", false)
+    elif hitstun > 0.0:
+        velocity.x = knock_x
+    else:
+        _process_ai(delta)
 
-	# F5.3 blink (i-frames visibles)
-	if invuln_timer > 0.0:
-		visible = (int(Time.get_ticks_msec() / 80.0) % 2) == 0
-	else:
-		visible = true
+    # F5.3 blink (i-frames visibles)
+    if invuln_timer > 0.0:
+        visible = (int(Time.get_ticks_msec() / 80.0) % 2) == 0
+    else:
+        visible = true
 
-	move_and_slide()
-	_apply_knockdown_landing()
+    move_and_slide()
+    _apply_knockdown_landing()
 
 func _process_ai(_delta: float) -> void:
-	pass
+    pass
 
-func _do_attack() -> void:
-	atk_cd = attack_cooldown
-	attack_area.position.x = 18.0 * direction
-	attack_area.set_deferred("monitoring", true)
-	await get_tree().create_timer(0.10).timeout
-	attack_area.set_deferred("monitoring", false)
+@export var damage: int = 1
+@export var knockback: float = 420.0
 
 func _on_attack_area_body_entered(body: Node) -> void:
-	if body.has_method("take_damage"):
-		body.take_damage(direction, 1, 420.0)
+    if body == null:
+        return
+    if not body.is_in_group("player"):
+        return
+
+    # Player.gd actual espera (from_dir, dmg, knock)
+    if body.has_method("take_damage"):
+        body.call("take_damage", direction, damage, knockback)
+
+func _do_attack() -> void:
+    atk_cd = attack_cooldown
+    attack_area.position.x = 18.0 * direction
+    attack_area.set_deferred("monitoring", true)
+    await get_tree().create_timer(0.10).timeout
+    attack_area.set_deferred("monitoring", false)
 
 func take_hit(from_dir: float, knock: float = 260.0, dmg: int = 1, lift: float = 0.0) -> void:
-	if invuln_timer > 0.0:
-		return
+    if invuln_timer > 0.0:
+        return
 
-	hp -= dmg
+    hp -= dmg
 
-	# daño floating text si existe
-	var main := get_tree().current_scene
-	if main and main.has_method("spawn_damage_text"):
-		main.spawn_damage_text(global_position, dmg)
+    # daño floating text si existe
+    var main := get_tree().current_scene
+    if main and main.has_method("spawn_damage_text"):
+        main.spawn_damage_text(global_position, dmg)
 
-	_flash()
+    _flash()
 
-	# juggle counter
-	if not is_on_floor():
-		air_hits += 1
-	else:
-		air_hits = 0
+    # juggle counter
+    if not is_on_floor():
+        air_hits += 1
+    else:
+        air_hits = 0
 
-	# si excede hits en aire, cortamos lift por un rato (anti infinito)
-	if air_hits >= MAX_AIR_HITS:
-		juggle_immunity = 0.6
-		lift = 0.0
-		pending_knockdown = false
+    # si excede hits en aire, cortamos lift por un rato (anti infinito)
+    if air_hits >= MAX_AIR_HITS:
+        juggle_immunity = 0.6
+        lift = 0.0
+        pending_knockdown = false
 
-	# knock horizontal
-	knock_x = knock * from_dir * 0.55
-	velocity.x = knock_x
+    # knock horizontal
+    knock_x = knock * from_dir * 0.55
+    velocity.x = knock_x
 
-	# stun/hitstun base
-	hitstun = 0.10
-	stun_timer = 0.06
-	if dmg >= 2:
-		hitstun = 0.12
-		stun_timer = 0.10
+    # stun/hitstun base
+    hitstun = 0.10
+    stun_timer = 0.06
+    if dmg >= 2:
+        hitstun = 0.12
+        stun_timer = 0.10
 
-	# heavy/launcher (solo si no hay juggle immunity)
-	if lift > 0.0 and juggle_immunity <= 0.0:
-		pending_knockdown = true
-		hitstun = 0.18
-		stun_timer = 0.12
-		velocity.y = -lift
+    # heavy/launcher (solo si no hay juggle immunity)
+    if lift > 0.0 and juggle_immunity <= 0.0:
+        pending_knockdown = true
+        hitstun = 0.18
+        stun_timer = 0.12
+        velocity.y = -lift
 
-	if hp <= 0:
-		call_deferred("_die")
+    if hp <= 0:
+        call_deferred("_die")
 
 func _apply_knockdown_landing() -> void:
-	if is_on_floor():
-		# reseteo de juggle al tocar piso
-		air_hits = 0
+    if is_on_floor():
+        # reseteo de juggle al tocar piso
+        air_hits = 0
 
-	# knockdown SOLO si venía de heavy
-	if pending_knockdown and is_on_floor():
-		pending_knockdown = false
-		down_timer = 0.60
-		was_down = true
-		attack_area.set_deferred("monitoring", false)
+    # knockdown SOLO si venía de heavy
+    if pending_knockdown and is_on_floor():
+        pending_knockdown = false
+        down_timer = 0.60
+        was_down = true
+        attack_area.set_deferred("monitoring", false)
 
 func _die() -> void:
-    # Avisar a Main para score/loot/spawn
-    get_tree().call_group("main", "_on_enemy_died", self)
+    emit_signal("died")
     queue_free()
 
 func _flash() -> void:
-	var old := modulate
-	modulate = Color(1, 1, 1, 1)
-	await get_tree().create_timer(0.05).timeout
-	modulate = old
+    var old := modulate
+    modulate = Color(1, 1, 1, 1)
+    await get_tree().create_timer(0.05).timeout
+    modulate = old
 
 func _find_player() -> Node2D:
-	var nodes := get_tree().get_nodes_in_group("player")
-	if nodes.size() > 0 and nodes[0] is Node2D:
-		return nodes[0]
-	var p := get_parent()
-	if p:
-		var n = p.get_node_or_null("Player")
-		if n and n is Node2D:
-			return n
-	return null
+    var nodes := get_tree().get_nodes_in_group("player")
+    if nodes.size() > 0 and nodes[0] is Node2D:
+        return nodes[0]
+    var p := get_parent()
+    if p:
+        var n = p.get_node_or_null("Player")
+        if n and n is Node2D:
+            return n
+    return null

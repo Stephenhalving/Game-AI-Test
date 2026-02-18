@@ -1,8 +1,8 @@
 [gd_scene format=3 uid="uid://main"]
 
-[ext_resource type="Script" uid="uid://c8rhnhiurh6fh" path="res://scripts/Main.gd" id="1_main"]
-[ext_resource type="Script" uid="uid://c3rmleacl0lbf" path="res://scripts/Player.gd" id="2_player"]
-[ext_resource type="Script" uid="uid://bb47h8najioyh" path="res://scripts/HUD.gd" id="3_hud"]
+[ext_resource type="Script" uid="uid://coex7xs8poh7q" path="res://scripts/Main.gd" id="1_main"]
+[ext_resource type="Script" uid="uid://dbymppx6oqvyw" path="res://scripts/Player.gd" id="2_player"]
+[ext_resource type="Script" uid="uid://b64rbruau4ge" path="res://scripts/HUD.gd" id="3_hud"]
 [ext_resource type="PackedScene" path="res://scenes/Door.tscn" id="4_door"]
 [ext_resource type="PackedScene" path="res://scenes/Level1.tscn" id="level1"]
 
@@ -11,9 +11,6 @@ size = Vector2(16, 24)
 
 [sub_resource type="RectangleShape2D" id="3"]
 size = Vector2(22, 18)
-
-[sub_resource type="RectangleShape2D" id="4"]
-size = Vector2(220, 24)
 
 [sub_resource type="Animation" id="Animation_nxtc6"]
 resource_name = "Jump"
@@ -90,22 +87,16 @@ _data = {
 &"run": SubResource("Animation_c01mt")
 }
 
-[sub_resource type="LabelSettings" id="4"]
-font_size = 14
-
-[sub_resource type="RectangleShape2D" id="2"]
-size = Vector2(2000, 80)
-
 [node name="Main" type="Node2D" unique_id=456811435]
 script = ExtResource("1_main")
 
-[node name="Level" parent="." instance=ExtResource("level1")]
+[node name="Level" parent="." unique_id=1438518510 instance=ExtResource("level1")]
+position = Vector2(-10, -2)
 
 [node name="Player" type="CharacterBody2D" parent="." unique_id=571391863]
 position = Vector2(200, 160)
 collision_layer = 2
 script = ExtResource("2_player")
-collision_mask = 1
 
 [node name="Visual" type="Node2D" parent="Player" unique_id=1580162654]
 
@@ -136,27 +127,20 @@ zoom = Vector2(2, 2)
 [node name="AnimationPlayer" type="AnimationPlayer" parent="Player" unique_id=1431773847]
 libraries/ = SubResource("AnimationLibrary_nxtc6")
 
-[node name="FloorRay" type="RayCast2D" parent="Player"]
+[node name="FloorRay" type="RayCast2D" parent="Player" unique_id=64034911]
 target_position = Vector2(0, 18)
-collision_mask = 1
-enabled = true
 
-[node name="WallRayLeft" type="RayCast2D" parent="Player"]
+[node name="WallRayLeft" type="RayCast2D" parent="Player" unique_id=1605662857]
 target_position = Vector2(-10, 0)
-collision_mask = 1
-enabled = true
 
-[node name="WallRayRight" type="RayCast2D" parent="Player"]
+[node name="WallRayRight" type="RayCast2D" parent="Player" unique_id=995951379]
 target_position = Vector2(10, 0)
-collision_mask = 1
-enabled = true
 
-[node name="HurtArea" type="Area2D" parent="Player"]
+[node name="HurtArea" type="Area2D" parent="Player" unique_id=391491434]
 collision_layer = 0
 collision_mask = 4
-monitoring = true
 
-[node name="HurtShape" type="CollisionShape2D" parent="Player/HurtArea"]
+[node name="HurtShape" type="CollisionShape2D" parent="Player/HurtArea" unique_id=1980150559]
 shape = SubResource("1")
 
 [node name="HUD" type="CanvasLayer" parent="." unique_id=1301874049]
@@ -193,7 +177,6 @@ offset_top = 12.0
 offset_right = 560.0
 offset_bottom = 34.0
 text = "SCORE: 0"
-label_settings = SubResource("4")
 
 [node name="ComboLabel" type="Label" parent="HUD/UI" unique_id=1029904808]
 layout_mode = 0
@@ -202,7 +185,6 @@ offset_top = 42.0
 offset_right = 560.0
 offset_bottom = 64.0
 text = "COMBO: -"
-label_settings = SubResource("4")
 
 [node name="KeyLabel" type="Label" parent="HUD/UI" unique_id=811794298]
 layout_mode = 0
@@ -210,7 +192,6 @@ offset_left = 12.0
 offset_right = 260.0
 offset_bottom = 94.0
 text = "KEY: NO"
-label_settings = SubResource("4")
 
 [node name="Door" parent="." unique_id=965898195 instance=ExtResource("4_door")]
 position = Vector2(472, 158)

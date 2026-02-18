@@ -172,12 +172,12 @@ func _physics_process(delta: float) -> void:
                     anim.play("idle")
    
     # DEBUG piso (cada ~0.5s)
-    if DisplayServer.get_name() != "headless": if Engine.get_physics_frames() % 30 == 0:
+    if Engine.get_physics_frames() % 30 == 0:
         print("floor=", is_on_floor(), " pos=", global_position, " vel=", velocity)
 
     move_and_slide()
 
-    if DisplayServer.get_name() != "headless": if Engine.get_physics_frames() % 30 == 0 and floor_ray:
+    if Engine.get_physics_frames() % 30 == 0 and floor_ray:
        print("floor_ray=", floor_ray.is_colliding(), " on_floor=", is_on_floor(), " vel=", velocity)
 
     # blink invuln
@@ -303,17 +303,8 @@ func take_damage(from_dir: float, dmg: int = 1, knock: float = 360.0) -> void:
     hurt_knock_x = knock * from_dir
     _set_action("HURT", 0.25)
     if hp <= 0:
-        hp = 0
-        state = State.KO
         _set_action("KO", 1.0)
-
-        var main := get_tree().current_scene
-        if main and main.has_method("on_player_died"):
-            main.call_deferred("on_player_died")
-        else:
-            # fallback ultra seguro
-            get_tree().reload_current_scene()
-        return
+        get_tree().call_group("main", "on_player_died")
 
 func _set_action(name: String, seconds: float) -> void:
     last_action = name

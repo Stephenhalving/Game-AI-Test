@@ -50,7 +50,7 @@ func _ready() -> void:
     if not is_headless:
         print("🧱 Main._ready() ENTER")
         print("🧱 arena_trigger=", arena_trigger)
-        print("🧱 arena_trigger_path=", str(arena_trigger.get_path()) if arena_trigger else "NULL")
+        print("🧱 arena_trigger_path=", arena_trigger.get_path() if arena_trigger else "NULL")
         print("✅ Main READY paused=", get_tree().paused, " time_scale=", Engine.time_scale)    
     add_to_group("main")
 
@@ -99,15 +99,12 @@ func _ready() -> void:
     if hud and hud.has_method("set_key"):
         hud.set_key(false)
 
-    _spawn_to_max()
+    # _spawn_to_max()
 
     if run_headless_test:
         print("🧪 HEADLESS: forcing arena start for test")
         call_deferred("_headless_test_run")
         return
-
-    if DisplayServer.get_name() != "headless":
-        call_deferred("_start_arena")
 
 func _headless_test_run() -> void:
     print("🧪 HEADLESS: _headless_test_run() ENTER")
@@ -241,12 +238,12 @@ func _spawn_to_max() -> void:
         return
     _spawn_to_max_legacy()
 
-func _build_wave_plan(wave_num: int) -> Array:
+func _build_wave_plan(wave: int) -> Array:
     var rusher := "res://scenes/EnemyRusher.tscn"
     var tank := "res://scenes/EnemyTank.tscn"
     var ranged := "res://scenes/EnemyRanged.tscn"
 
-    match wave_num:
+    match wave:
         1:
             return [rusher, rusher, rusher]
         2:
@@ -262,19 +259,7 @@ func _spawn_enemy_from_path(scene_path: String):
         push_error("Enemy scene not found: %s" % scene_path)
         return
 
-    var enemy: Node = packed.instantiate()
-
-    var level := get_node_or_null("Level")
-    if level:
-        level.add_child(enemy)
-    else:
-        add_child(enemy)
-
-    arena_enemies.append(enemy)
-
-    # asegurar que se vea por encima del fondo si hace falta
-    if enemy is CanvasItem:
-        (enemy as CanvasItem).z_index = 20
+    
 
     var sp2: Node2D = _pick_arena_spawn_point()
     var pos: Vector2 = sp2.global_position if sp2 != null else Vector2.ZERO
@@ -313,16 +298,7 @@ func _spawn_to_max_legacy() -> void:
     while enemies.size() < max_enemies:
         var scene := _pick_enemy_scene()
         var e: Node = scene.instantiate()
-
-        var level2 := get_node_or_null("Level")
-        if level2:
-            level2.add_child(e)
-        else:
-            add_child(e)
-
-        if e is CanvasItem:
-            (e as CanvasItem).z_index = 20
-
+        add_child(e)
         e.name = "Enemy_%d" % Time.get_ticks_msec()
         e.global_position = Vector2(320 + enemies.size() * 34, 120)
         enemies.append(e)
