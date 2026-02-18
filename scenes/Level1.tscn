@@ -1,4 +1,4 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://bo47cikj2fq65"]
 
 [sub_resource type="RectangleShape2D" id="2"]
 size = Vector2(2000, 80)
@@ -10,69 +10,80 @@ size = Vector2(40, 600)
 size = Vector2(40, 600)
 
 [sub_resource type="RectangleShape2D" id="12"]
-size = Vector2(180, 14)
+size = Vector2(180, 11.5)
 
-[node name="Level1" type="Node2D"]
+[node name="Level1" type="Node2D" unique_id=1190374941]
 
-[node name="Ground" type="StaticBody2D" parent="."]
+[node name="Ground" type="StaticBody2D" parent="." unique_id=415027582]
 position = Vector2(200, 220)
-collision_layer = 1
 collision_mask = 0
 
-[node name="GroundBody" type="Polygon2D" parent="Ground"]
+[node name="GroundBody" type="Polygon2D" parent="Ground" unique_id=189607565]
 polygon = PackedVector2Array(-1000, -40, 1000, -40, 1000, 40, -1000, 40)
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Ground"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Ground" unique_id=36612411]
 shape = SubResource("2")
 
-[node name="LeftWall" type="StaticBody2D" parent="."]
+[node name="LeftWall" type="StaticBody2D" parent="." unique_id=845234340]
 position = Vector2(-40, 0)
-collision_layer = 1
 collision_mask = 0
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="LeftWall"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="LeftWall" unique_id=584279827]
 shape = SubResource("10")
 
-[node name="RightWall" type="StaticBody2D" parent="."]
+[node name="RightWall" type="StaticBody2D" parent="." unique_id=950530586]
 position = Vector2(520, 0)
-collision_layer = 1
 collision_mask = 0
 
-[node name="PlatformA" type="StaticBody2D" parent="."]
-position = Vector2(250, 160)
-collision_layer = 1
-collision_mask = 0
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="PlatformA"]
-shape = SubResource("12")
-
-[node name="PlatformB" type="StaticBody2D" parent="."]
-position = Vector2(380, 120)
-collision_layer = 1
-collision_mask = 0
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="PlatformB"]
-shape = SubResource("12")
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="RightWall"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="RightWall" unique_id=420998575]
+position = Vector2(124, -2)
 shape = SubResource("11")
 
-[node name="PlatformTest" type="StaticBody2D" parent="."]
-position = Vector2(360, 120)
-collision_layer = 1
+[node name="PlatformB" type="StaticBody2D" parent="." unique_id=198192442]
+position = Vector2(381, 119)
 collision_mask = 0
 
-[node name="PlatformBody" type="Polygon2D" parent="PlatformTest"]
-polygon = PackedVector2Array(-90, -7, 90, -7, 90, 7, -90, 7)
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="PlatformTest"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="PlatformB" unique_id=1214789850]
+position = Vector2(-21, -13)
 shape = SubResource("12")
 
-[node name="ArenaTrigger" type="Area2D" parent="."]
+[node name="PlatformTest" type="StaticBody2D" parent="." unique_id=589057559]
+position = Vector2(360, 120)
+collision_mask = 0
+
+[node name="PlatformBody" type="Polygon2D" parent="PlatformTest" unique_id=1163313388]
+position = Vector2(-1, -13)
+polygon = PackedVector2Array(-90, -7, 90, -7, 89, 5, 0, 5, -90, 5)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="PlatformTest" unique_id=374472142]
+position = Vector2(0, -13.75)
+shape = SubResource("12")
+
+[node name="PlatformTest2" type="StaticBody2D" parent="." unique_id=1870463302]
+position = Vector2(359, 122)
+collision_mask = 0
+
+[node name="PlatformBody" type="Polygon2D" parent="PlatformTest2" unique_id=2118284913]
+position = Vector2(-2, -8)
+polygon = PackedVector2Array(-233, 25, -148, 25, -99, 25, -53, 25, -53, 31, -52, 37, -96, 37, -145, 37, -233, 37, -233, 30)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="PlatformTest2" unique_id=587928266]
+position = Vector2(-145, 23)
+shape = SubResource("12")
+
+[node name="ArenaTrigger" type="Area2D" parent="." unique_id=781897593]
 position = Vector2(300, 190)
 collision_layer = 0
 collision_mask = 2
-monitoring = true
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="ArenaTrigger"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="ArenaTrigger" unique_id=800119812]
 shape = SubResource("12")
+
+[node name="ArenaSpawnLeft" type="Node2D" parent="." groups=["arena_spawn"]]
+position = Vector2(40, 170)
+
+[node name="ArenaSpawnRight" type="Node2D" parent="." groups=["arena_spawn"]]
+position = Vector2(480, 170)
+
+[node name="ArenaSpawnTop" type="Node2D" parent="." groups=["arena_spawn"]]
+position = Vector2(260, 110)

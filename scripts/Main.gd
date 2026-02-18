@@ -4,6 +4,10 @@ const LevelConfig = preload("res://scripts/LevelConfig.gd")
 const RUSHER_SCENE := preload("res://scenes/EnemyRusher.tscn")
 const TANK_SCENE := preload("res://scenes/EnemyTank.tscn")
 const RANGED_SCENE := preload("res://scenes/EnemyRanged.tscn")
+const ARENA_SPAWN_MIN_X := 40.0
+const ARENA_SPAWN_MAX_X := 480.0
+const ARENA_SPAWN_MIN_Y := 110.0
+const ARENA_SPAWN_MAX_Y := 190.0
 
 const COIN_SCENE := preload("res://scenes/Coin.tscn")
 const FOOD_SCENE := preload("res://scenes/Food.tscn")
@@ -24,7 +28,7 @@ var arena_total_waves := 3
 var arena_wave_left := 0
 var arena_waiting_next_wave := false
 
-@onready var arena_spawn_points := get_tree().get_nodes_in_group("arena_spawn")
+var arena_spawn_points: Array = []
 @export var headless_autoplay: bool = false
 @onready var hud := $HUD
 @onready var door := get_node_or_null("Door")
@@ -65,8 +69,14 @@ func _ready() -> void:
     cfg = LevelConfig.get_level(level_id)
     max_enemies = int(cfg.get("max_enemies", max_enemies))
 
-    # resto igual...
-
+    arena_spawn_points = []
+    var level := get_node_or_null("Level")
+    if level:
+        var nodes := level.find_children("*", "Node2D", true, false)
+        for n in nodes:
+            if n.is_in_group("arena_spawn"):
+                arena_spawn_points.append(n)
+    print("🧭 arena_spawn_points=", arena_spawn_points.size())
 
     var g = get_node_or_null("Ground")
     var gy := "NONE"
@@ -84,6 +94,8 @@ func _ready() -> void:
     if DisplayServer.get_name() == "headless":
         print("🧪 HEADLESS: forcing arena start for test")
         _start_arena()
+        await get_tree().create_timer(2.0).timeout
+        get_tree().quit()
 
 func _lock_door(locked: bool) -> void:
     # locked=true => door closed
@@ -115,8 +127,18 @@ func _lock_door(locked: bool) -> void:
             door_node.call("_update_state_deferred")
 
 func _start_arena():
+    arena_active = true
+    arena_waiting_next_wave = false
+    arena_wave_left = 0
+
     if arena_active:
         return
+
+    # refrescar spawn points (por orden de carga / groups)
+    arena_spawn_points = get_tree().get_nodes_in_group("arena_spawn")
+    print("🧭 arena_spawn_points(start_arena)=", arena_spawn_points.size())
+    for n in arena_spawn_points:
+        print("🧭 spawn:", n.name)
 
     arena_cleared = false
     arena_wave_index = 0
@@ -126,6 +148,14 @@ func _start_arena():
     _spawn_next_wave()
 
 func _spawn_next_wave():
+    # Beat pause (Scott Pilgrim vibe)
+    get_tree().paused = true
+    await get_tree().create_timer(0.12, true).timeout
+    get_tree().paused = false
+
+    # Pequeño "ready" delay antes de que entren
+    await get_tree().create_timer(0.35).timeout
+
     arena_wave_index += 1
     if arena_wave_index > arena_total_waves:
         _finish_arena()
@@ -134,8 +164,14 @@ func _spawn_next_wave():
     var plan := _build_wave_plan(arena_wave_index)
     arena_wave_left = plan.size()
 
+    # Spawn escalonado para que no se encimen (feeling arcade/brawler)
     for enemy_scene_path in plan:
         _spawn_enemy_from_path(enemy_scene_path)
+        await get_tree().create_timer(0.35).timeout
+
+func _spawn_to_max() -> void:
+    # Wrapper: el spawner general usa la versión legacy
+    _spawn_to_max_legacy()
 
 func _build_wave_plan(wave: int) -> Array:
     var rusher := "res://scenes/EnemyRusher.tscn"
@@ -161,16 +197,38 @@ func _spawn_enemy_from_path(scene_path: String):
     var enemy: Node = packed.instantiate()
     add_child(enemy)
 
-    # spawn pos
-    var pos := _pick_arena_spawn_position()
+    var sp2: Node2D = _pick_arena_spawn_point()
+    var pos: Vector2 = sp2.global_position if sp2 != null else Vector2.ZERO
+
     if enemy is Node2D:
-        enemy.global_position = pos
+        var n := enemy as Node2D
+
+        # "entrada" estilo brawler: spawn desplazado y tween al punto
+        var offset := Vector2.ZERO
+        var nm := String(sp2.name) if sp2 != null else ""
+
+        if nm.find("Left") != -1:
+            offset = Vector2(-80, 0)
+        elif nm.find("Right") != -1:
+            offset = Vector2(80, 0)
+        elif nm.find("Top") != -1:
+            offset = Vector2(0, -60)    
+
+        pos.x = clamp(pos.x, ARENA_SPAWN_MIN_X, ARENA_SPAWN_MAX_X)
+        pos.y = clamp(pos.y, ARENA_SPAWN_MIN_Y, ARENA_SPAWN_MAX_Y)
+
+        var start_pos := pos + offset
+        start_pos.x = clamp(start_pos.x, ARENA_SPAWN_MIN_X, ARENA_SPAWN_MAX_X)
+        start_pos.y = clamp(start_pos.y, ARENA_SPAWN_MIN_Y, ARENA_SPAWN_MAX_Y)
+
+        n.global_position = start_pos
+        create_tween().tween_property(n, "global_position", pos, 0.28)
 
     # connect died
     if enemy.has_signal("died"):
         enemy.connect("died", Callable(self, "_on_arena_enemy_died").bind(enemy))
 
-func _spawn_to_max() -> void:
+func _spawn_to_max_legacy() -> void:
     _cleanup_dead()
     while enemies.size() < max_enemies:
         var scene := _pick_enemy_scene()
@@ -204,11 +262,11 @@ func add_score(v: int) -> void:
         hud.set_score(score)
 
 func on_key_collected() -> void:
+    if arena_active:
+        return
     has_key = true
     if hud and hud.has_method("set_key"):
         hud.set_key(true)
-    if door:
-        door.open()
 
 func _drop_loot(pos: Vector2) -> void:
     var r := randf()
@@ -220,26 +278,31 @@ func _drop_loot(pos: Vector2) -> void:
         var f = FOOD_SCENE.instantiate()
         add_child(f)
         f.global_position = pos
-    else:
-        if not has_key:
-            var k = KEY_SCENE.instantiate()
-            add_child(k)
-            k.global_position = pos
-
+    
 func _on_enemy_died(e: Node) -> void:
     add_score(100)
     if e and is_instance_valid(e):
         call_deferred("_drop_loot", e.global_position)
     if enemies.has(e):
         enemies.erase(e)
+
+    # Durante arena no usamos el loop de spawn general
+    if arena_active:
+        return
+
     wave += 1
-    _spawn_to_max()
+    _spawn_to_max_legacy()
+
+func _pick_arena_spawn_point() -> Node2D:
+    if arena_spawn_points.size() <= 0:
+        return null
+    var sp: Node = arena_spawn_points[randi() % arena_spawn_points.size()]
+    return sp as Node2D
 
 func _pick_arena_spawn_position() -> Vector2:
-    if arena_spawn_points.size() > 0:
-        var sp := arena_spawn_points[randi() % arena_spawn_points.size()]
-        if sp is Node2D:
-            return sp.global_position
+    var sp: Node2D = _pick_arena_spawn_point()
+    if sp != null:
+        return sp.global_position
     return Vector2.ZERO
 
 func on_level_complete() -> void:
@@ -300,7 +363,7 @@ func _on_arena_trigger_body_entered(body: Node) -> void:
     print("🟨 ArenaTrigger ENTER -> START ARENA")
     _start_arena()
 
-func _spawn_arena_wave() -> void:
+func _spawn_arena_wave_legacy() -> void:
     print("🧪 _spawn_arena_wave() ENTER")
 
     var spawn_y := 170.0
@@ -331,8 +394,9 @@ func _spawn_arena_wave() -> void:
         if e.has_signal("died"):
             # 1) contador de arena
             e.died.connect(_on_arena_enemy_died)
-            # 2) sistema general (score/loot/respawn)
-            e.died.connect(func(): _on_enemy_died(e))
+
+        # spawn escalonado (Scott Pilgrim feel)
+        await get_tree().create_timer(0.35).timeout
 
 func _on_arena_enemy_died(enemy):
     arena_wave_left -= 1
@@ -367,9 +431,10 @@ func _start_arena_legacy():
     arena_active = true
     arena_cleared = false
     arena_wave_left = 0
-
+    
+    # LEGACY: no usar en el sistema nuevo (se mantiene por referencia)
     print("🧪 _start_arena() -> calling _spawn_arena_wave()")
-    _spawn_arena_wave()
+    _spawn_arena_wave_legacy()
 
     if door_node and door_node.has_method("set_locked"):
         door_node.call("set_locked", true)    
