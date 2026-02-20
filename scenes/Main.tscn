@@ -96,6 +96,7 @@ position = Vector2(-10, -2)
 [node name="Player" type="CharacterBody2D" parent="." unique_id=571391863]
 position = Vector2(200, 160)
 collision_layer = 2
+collision_mask = 4
 script = ExtResource("2_player")
 
 [node name="Visual" type="Node2D" parent="Player" unique_id=1580162654]

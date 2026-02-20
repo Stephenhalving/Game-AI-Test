@@ -722,19 +722,37 @@ func _on_arena_enemy_died(_arg = null) -> void:
         arena_waiting_next_wave = false
         _spawn_next_wave()
 
-func _finish_arena():
+func _finish_arena() -> void:
     print("🧪 DEBUG: _finish_arena() called. wave_index=", arena_wave_index, " wave_left=", arena_wave_left)
 
+    # Stop arena state
     arena_active = false
+    arena_starting = false
+    arena_wave_left = 0
+
+    # Limpieza defensiva (por si algo quedó trackeado)
+    for e in arena_enemies:
+        if is_instance_valid(e):
+            e.queue_free()
+    arena_enemies.clear()
+
+    # Avanzar ciclo (1->2, 2->3) pero NO reiniciar automático.
+    if arena_cycle < 3:
+        arena_cycle += 1
+        arena_cleared = false  # rearmar: se podrá iniciar el próximo ciclo cuando re-entre al trigger
+
+        _apply_arena_variation(arena_cycle)
+        print("🧩 arena_cycle now =", arena_cycle, " (waiting for player to re-enter trigger)")
+        return
+
+    # Cycle 3 = final del stage
     arena_cleared = true
 
-    # ✅ dar llave SOLO al finalizar la arena
-    _grant_arena_key()
+    # Apagar trigger para que nunca más reinicie este stage
+    if arena_trigger:
+        arena_trigger.set_deferred("monitoring", false)
 
-    _lock_door(false)
-
-    arena_cycle = min(arena_cycle + 1, 3)
-    print("🧩 arena_cycle now =", arena_cycle)
+    print("🏁 STAGE COMPLETE (cycle 3). Enable exit/door here.")
 
 func _grant_arena_key() -> void:
     if has_key:
@@ -790,46 +808,51 @@ func _wait(seconds: float) -> void:
         await get_tree().create_timer(seconds).timeout
 
 func _apply_arena_variation(cycle: int) -> void:
-    # cycle=1: base (sin extras)
-    # cycle=2: habilita plataformas group arena_var_2
-    # cycle=3: habilita plataformas group arena_var_3
-    var use_var2 := (cycle == 2)
-    var use_var3 := (cycle >= 3)
+    # Cycle layout:
+    # 1 -> PlatformTest + PlatformTest2
+    # 2 -> PlatformB + PlatformTest2
+    # 3 -> PlatformVar2 + PlatformVar3
 
-    var var2_nodes := get_tree().get_nodes_in_group("arena_var_2")
-    var var3_nodes := get_tree().get_nodes_in_group("arena_var_3")
+    var level: Node = get_node_or_null("Level")
+    if level == null:
+        print("🟥 Level not found")
+        return
 
-    # helper local
+    var all_platforms: Array[String] = [
+        "PlatformB",
+        "PlatformTest",
+        "PlatformTest2",
+        "PlatformVar2",
+        "PlatformVar3"
+    ]
+
+    var active_platforms: Array[String] = []
+    if cycle == 1:
+        active_platforms = ["PlatformTest", "PlatformTest2"]
+    elif cycle == 2:
+        active_platforms = ["PlatformB", "PlatformTest2"]
+    else:
+        active_platforms = ["PlatformVar2", "PlatformVar3"]
+
     var _set_enabled := func(n: Node, enabled: bool) -> void:
-        if n == null or not is_instance_valid(n):
+        if n == null:
             return
 
-        # visual
         if n is CanvasItem:
             (n as CanvasItem).visible = enabled
 
-        # collision (StaticBody2D suele tener CollisionShape2D hijo)
-        var cs := n.get_node_or_null("CollisionShape2D")
-        if cs:
-            cs.set_deferred("disabled", not enabled)
-
-        # extra safety: si hay más shapes
         for c in n.get_children():
             if c is CollisionShape2D:
                 (c as CollisionShape2D).set_deferred("disabled", not enabled)
 
-    # por default: apagar todo
-    for n2 in var2_nodes:
-        _set_enabled.call(n2, false)
-    for n3 in var3_nodes:
-        _set_enabled.call(n3, false)
+    # Apagar todas
+    for name: String in all_platforms:
+        var p: Node = level.get_node_or_null(name)
+        _set_enabled.call(p, false)
 
-    # prender lo que toca
-    if use_var2:
-        for n2 in var2_nodes:
-            _set_enabled.call(n2, true)
-    if use_var3:
-        for n3 in var3_nodes:
-            _set_enabled.call(n3, true)
+    # Encender las del ciclo
+    for name: String in active_platforms:
+        var p: Node = level.get_node_or_null(name)
+        _set_enabled.call(p, true)
 
-    print("🧩 arena variation applied. cycle=", cycle, " var2=", use_var2, " var3=", use_var3)
+    print("🧩 Platforms cycle=", cycle, " active=", active_platforms)

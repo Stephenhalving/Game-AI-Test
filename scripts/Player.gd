@@ -336,5 +336,3 @@ func _shake_cam(intensity: float = 3.0, duration: float = 0.10) -> void:
         cam.position = base + off
         await get_tree().create_timer(step_t).timeout
     cam.position = base
-
-

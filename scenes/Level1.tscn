@@ -12,11 +12,15 @@ size = Vector2(40, 600)
 [sub_resource type="RectangleShape2D" id="12"]
 size = Vector2(180, 11.5)
 
+[sub_resource type="RectangleShape2D" id="13"]
+size = Vector2(176, 12.75)
+
 [node name="Level1" type="Node2D" unique_id=1190374941]
 
 [node name="Ground" type="StaticBody2D" parent="." unique_id=415027582]
 position = Vector2(200, 220)
-collision_mask = 0
+collision_layer = 4
+collision_mask = 6
 
 [node name="GroundBody" type="Polygon2D" parent="Ground" unique_id=189607565]
 polygon = PackedVector2Array(-1000, -40, 1000, -40, 1000, 40, -1000, 40)
@@ -26,62 +30,69 @@ shape = SubResource("2")
 
 [node name="LeftWall" type="StaticBody2D" parent="." unique_id=845234340]
 position = Vector2(-140, 0)
-collision_mask = 0
+collision_layer = 4
+collision_mask = 6
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="LeftWall" unique_id=584279827]
 shape = SubResource("10")
 
 [node name="RightWall" type="StaticBody2D" parent="." unique_id=950530586]
 position = Vector2(620, 0)
-collision_mask = 0
+collision_layer = 4
+collision_mask = 6
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="RightWall" unique_id=420998575]
 position = Vector2(124, -2)
 shape = SubResource("11")
 
-[node name="PlatformB" type="StaticBody2D" parent="." unique_id=198192442]
+[node name="PlatformB" type="StaticBody2D" parent="." groups=["arena_c2"]]
 position = Vector2(381, 119)
-collision_mask = 0
+collision_layer = 4
+collision_mask = 6
+visible = false
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="PlatformB" unique_id=1214789850]
-position = Vector2(-21, -13)
+position = Vector2(-23, -36)
 shape = SubResource("12")
 
-[node name="Visual" type="Polygon2D" parent="PlatformB"]
+[node name="Visual" type="Polygon2D" parent="PlatformB" unique_id=846774476]
+position = Vector2(-22, -36)
+color = Color(0.2, 0.6, 1, 0.85)
 polygon = PackedVector2Array(-90, -6, 90, -6, 90, 6, -90, 6)
-color = Color(0.2, 0.6, 1.0, 0.85)
 
-[node name="PlatformTest" type="StaticBody2D" parent="." unique_id=589057559]
+[node name="PlatformTest" type="StaticBody2D" parent="." groups=["arena_c1"]]
+visible = false
 position = Vector2(360, 120)
-collision_mask = 0
+collision_layer = 4
+collision_mask = 6
 
-[node name="Visual" type="Polygon2D" parent="PlatformTest"]
+[node name="Visual" type="Polygon2D" parent="PlatformTest" unique_id=1843491873]
+color = Color(1, 0.8, 0.2, 0.85)
 polygon = PackedVector2Array(-90, -6, 90, -6, 90, 6, -90, 6)
-color = Color(1.0, 0.8, 0.2, 0.85)
 
 [node name="PlatformBody" type="Polygon2D" parent="PlatformTest" unique_id=1163313388]
-position = Vector2(-1, -13)
 polygon = PackedVector2Array(-90, -7, 90, -7, 89, 5, 0, 5, -90, 5)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="PlatformTest" unique_id=374472142]
-position = Vector2(0, -13.75)
 shape = SubResource("12")
 
-[node name="PlatformTest2" type="StaticBody2D" parent="." unique_id=1870463302]
-position = Vector2(359, 122)
-collision_mask = 0
+[node name="PlatformTest2" type="StaticBody2D" parent="." groups=["arena_c1","arena_c2"]]
+visible = false
+position = Vector2(260, 95)
+collision_layer = 4
+collision_mask = 6
 
-[node name="Visual" type="Polygon2D" parent="PlatformTest2"]
-polygon = PackedVector2Array(-120, -6, 120, -6, 120, 6, -120, 6)
-color = Color(0.8, 0.3, 1.0, 0.85)
+[node name="Visual" type="Polygon2D" parent="PlatformTest2" unique_id=288589423]
+position = Vector2(-141, 28)
+color = Color(0.8, 0.3, 1, 0.85)
+polygon = PackedVector2Array(-93, -6, -11, -5, -4, -5, -1, -5, 44, -6, 86, -7, 86, 5, 11, 9, -15, 7, -93, 6)
 
 [node name="PlatformBody" type="Polygon2D" parent="PlatformTest2" unique_id=2118284913]
-position = Vector2(-2, -8)
 polygon = PackedVector2Array(-233, 25, -148, 25, -99, 25, -53, 25, -53, 31, -52, 37, -96, 37, -145, 37, -233, 37, -233, 30)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="PlatformTest2" unique_id=587928266]
-position = Vector2(-145, 23)
-shape = SubResource("12")
+position = Vector2(-144, 30)
+shape = SubResource("13")
 
 [node name="ArenaTrigger" type="Area2D" parent="." unique_id=781897593]
 position = Vector2(300, 190)
@@ -91,53 +102,56 @@ collision_mask = 2
 [node name="CollisionShape2D" type="CollisionShape2D" parent="ArenaTrigger" unique_id=800119812]
 shape = SubResource("12")
 
-[node name="ArenaSpawnLeft" type="Node2D" parent="." groups=["arena_spawn"]]
+[node name="ArenaSpawnLeft" type="Node2D" parent="." unique_id=325228134 groups=["arena_spawn"]]
 position = Vector2(40, 170)
 
-[node name="ArenaSpawnRight" type="Node2D" parent="." groups=["arena_spawn"]]
+[node name="ArenaSpawnRight" type="Node2D" parent="." unique_id=246196359 groups=["arena_spawn"]]
 position = Vector2(480, 170)
 
-[node name="ArenaSpawnTop" type="Node2D" parent="." groups=["arena_spawn"]]
-position = Vector2(260, 110)
-
-position = Vector2(200, 150)
-collision_mask = 0
-
-shape = SubResource("12")
-
+[node name="ArenaSpawnTop" type="Node2D" parent="." unique_id=1501863163 groups=["arena_spawn"]]
 position = Vector2(420, 140)
-collision_mask = 0
 
-[node name="ArenaSpawnVar2A" type="Node2D" parent="." groups=["arena_spawn","arena_var_2"]]
+
+[node name="ArenaSpawnVar2A" type="Node2D" parent="." unique_id=1211574767 groups=["arena_spawn", "arena_var_2"]]
 position = Vector2(120, 110)
 
-[node name="ArenaSpawnVar2B" type="Node2D" parent="." groups=["arena_spawn","arena_var_2"]]
+[node name="ArenaSpawnVar2B" type="Node2D" parent="." unique_id=446816995 groups=["arena_spawn", "arena_var_2"]]
 position = Vector2(400, 110)
 
-[node name="ArenaSpawnVar3A" type="Node2D" parent="." groups=["arena_spawn","arena_var_3"]]
+[node name="ArenaSpawnVar3A" type="Node2D" parent="." unique_id=2106573058 groups=["arena_spawn", "arena_var_3"]]
 position = Vector2(80, 150)
 
-[node name="ArenaSpawnVar3B" type="Node2D" parent="." groups=["arena_spawn","arena_var_3"]]
+[node name="ArenaSpawnVar3B" type="Node2D" parent="." unique_id=81123656 groups=["arena_spawn", "arena_var_3"]]
 position = Vector2(440, 150)
 
-[node name="PlatformVar2" type="StaticBody2D" parent="." groups=["arena_var_2"]]
+[node name="PlatformVar2" type="StaticBody2D" parent="." groups=["arena_c3"]]
+visible = false
 position = Vector2(240, 120)
-collision_mask = 0
+collision_layer = 4
+collision_mask = 6
 
-[node name="Visual" type="Polygon2D" parent="PlatformVar2"]
-polygon = PackedVector2Array(-90, -6, 90, -6, 90, 6, -90, 6)
+[node name="Visual" type="Polygon2D" parent="PlatformVar2" unique_id=1125084853]
+position = Vector2(-41, -31)
 color = Color(0.2, 0.9, 0.2, 0.9)
+polygon = PackedVector2Array(-90, -6, -37, -5, 0, -4, 34, -3, 85, -5, 90, -6, 90, 6, 68, 6, 0, 7, -90, 6)
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="PlatformVar2"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="PlatformVar2" unique_id=2126426649]
+position = Vector2(-48, -30)
 shape = SubResource("12")
+disabled = true
 
-[node name="PlatformVar3" type="StaticBody2D" parent="." groups=["arena_var_3"]]
+[node name="PlatformVar3" type="StaticBody2D" parent="." groups=["arena_c3"]]
+visible = false
 position = Vector2(460, 150)
-collision_mask = 0
+collision_layer = 4
+collision_mask = 6
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="PlatformVar3"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="PlatformVar3" unique_id=2072848188]
+position = Vector2(-37, -89)
 shape = SubResource("12")
+disabled = true
 
-[node name="Visual" type="Polygon2D" parent="PlatformVar3"]
-polygon = PackedVector2Array(-90, -6, 90, -6, 90, 6, -90, 6)
+[node name="Visual" type="Polygon2D" parent="PlatformVar3" unique_id=1819309634]
+position = Vector2(-37, -89)
 color = Color(0.9, 0.2, 0.2, 0.9)
+polygon = PackedVector2Array(-90, -6, 30, -9, 90, -6, 90, 6, -90, 6)

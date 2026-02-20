@@ -11,7 +11,7 @@ size = Vector2(22, 18)
 [node name="Enemy" type="CharacterBody2D"]
 script = ExtResource("1_enemy")
 collision_layer = 4
-collision_mask = 3
+collision_mask = 6
 [node name="EnemyBody" type="Polygon2D" parent="."]
 polygon = PackedVector2Array(-8, -12, 8, -12, 8, 12, -8, 12)
 
@@ -21,6 +21,5 @@ shape = SubResource("1")
 [node name="AttackArea" type="Area2D" parent="."]
 monitoring = false
 collision_layer = 4
-collision_mask = 3
-[node name="AttackCollision" type="CollisionShape2D" parent="AttackArea"]
+[node name="AttackCollision" type="CollisionShape2D" parent="AttackArea"]
 shape = SubResource("2")
