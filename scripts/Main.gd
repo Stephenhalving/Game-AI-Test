@@ -22,6 +22,7 @@ var has_key := false
 var level_id: int = 1
 var cfg: Dictionary = {}
 var arena_active := false
+var arena_starting := false
 var arena_cleared := false
 var arena_wave_index := 0
 var arena_total_waves := 3
@@ -121,6 +122,19 @@ func _headless_test_run() -> void:
 
     _start_arena()
 
+    # esperar arranque real de la primera wave (evita que el test termine antes)
+    var boot_t := 0.0
+    while boot_t < 3.0 and arena_wave_index == 0:
+        await _wait(0.05)
+        boot_t += 0.05
+
+    print("🧪 HEADLESS BOOT:",
+        " boot_waited=", boot_t,
+        " wave_index=", arena_wave_index,
+        " wave_left=", arena_wave_left,
+        " spawned=", arena_enemies.size()
+    )
+
     # correr waves hasta que termine (con safety)
     var safety := 0
     while arena_active and safety < 10:
@@ -193,10 +207,31 @@ func _lock_door(locked: bool) -> void:
 
 func _start_arena() -> void:
     print("🟩 _start_arena() CALLED spawn_points=", arena_spawn_points.size())
+    print("🧪 DEBUG: prechecks arena_starting=", arena_starting, " arena_active=", arena_active, " arena_cleared=", arena_cleared)
+
+    # anti doble-disparo (trigger puede entrar 2 veces)
+    if arena_starting:
+        print("🟥 _start_arena blocked: arena_starting")
+        return
+    arena_starting = true
+
     if arena_active or arena_cleared:
+        print("🧪 DEBUG: returning because arena_active/cleared -> active=", arena_active, " cleared=", arena_cleared)
+        arena_starting = false
         return
 
+    print("🧪 DEBUG: about to clear legacy enemies. enemies.size=", enemies.size())
+
+    # limpiar enemigos legacy antes de arrancar la arena
+    for e in enemies:
+        if e and is_instance_valid(e):
+            e.queue_free()
+    enemies.clear()
+    await get_tree().create_timer(0.01, true).timeout
+    print("🧪 DEBUG: cleared legacy enemies OK. now setting arena_active true")
     arena_active = true
+    arena_starting = false
+
     arena_waiting_next_wave = false
     arena_wave_left = 0
 
@@ -211,50 +246,84 @@ func _start_arena() -> void:
     arena_total_waves = 3 # por ahora fijo
 
     _lock_door(true)
+    print("🧪 DEBUG: calling _spawn_next_wave() now. arena_active=", arena_active, " wave_index=", arena_wave_index)
     _spawn_next_wave()
 
 func _spawn_next_wave():
-    # Beat pause (Scott Pilgrim vibe)
-    get_tree().paused = true
-    await get_tree().create_timer(0.12, true).timeout
-    get_tree().paused = false
+    var is_headless := DisplayServer.get_name() == "headless"
+    print("🧪 DEBUG: ENTER _spawn_next_wave(). headless=", is_headless, " arena_active=", arena_active, " wave_index(before)=", arena_wave_index)
 
-    # Pequeño "ready" delay antes de que entren
-    await get_tree().create_timer(0.35).timeout
+    # Delays: en headless = 0 para test determinístico
+    if not is_headless:
+        get_tree().paused = true
+        await get_tree().create_timer(0.12, true).timeout
+        get_tree().paused = false
+        await get_tree().create_timer(0.35, true).timeout
+    else:
+        await get_tree().process_frame
 
     arena_wave_index += 1
+    print("🧪 DEBUG: wave_index incremented ->", arena_wave_index)
+
     if arena_wave_index > arena_total_waves:
         _finish_arena()
         return
 
     var plan := _build_wave_plan(arena_wave_index)
     arena_wave_left = plan.size()
+    print("🧪 DEBUG: plan size=", arena_wave_left)
 
-    # Spawn escalonado para que no se encimen (feeling arcade/brawler)
+    # Spawn escalonado: en headless, sin waits
     for enemy_scene_path in plan:
         _spawn_enemy_from_path(enemy_scene_path)
-        await get_tree().create_timer(0.35).timeout
-
-func _spawn_to_max() -> void:
-    # No spawnear enemigos generales durante arena
-    if arena_active:
-        return
-    _spawn_to_max_legacy()
+        if not is_headless:
+            await get_tree().create_timer(0.35).timeout
 
 func _build_wave_plan(wave_num: int) -> Array:
     var rusher := "res://scenes/EnemyRusher.tscn"
     var tank := "res://scenes/EnemyTank.tscn"
     var ranged := "res://scenes/EnemyRanged.tscn"
 
-    match wave_num:
-        1:
-            return [rusher, rusher, rusher]
-        2:
-            return [rusher, rusher, ranged]
-        3:
-            return [tank, rusher, rusher]
-        _:
-            return [tank, ranged, rusher, rusher]
+    var plan: Array = []
+    var allow_tank := wave_num >= 2
+    var max_tanks := 1 if allow_tank else 0
+    var max_ranged := 1  # evita spam de balas para demo
+
+    var tanks := 0
+    var rangeds := 0
+
+    # Probabilidades (climax en wave 3)
+    var p_rusher := 60
+    var p_ranged := 25
+    var p_tank := 15
+    if wave_num == 1:
+        p_rusher = 75
+        p_ranged = 25
+        p_tank = 0
+    elif wave_num == 3:
+        p_rusher = 55
+        p_ranged = 20
+        p_tank = 25  # climax: más chance de tank
+
+    while plan.size() < 3:
+        var roll := randi() % 100
+
+        if roll < p_rusher:
+            plan.append(rusher)
+        elif roll < (p_rusher + p_ranged):
+            if rangeds < max_ranged:
+                plan.append(ranged)
+                rangeds += 1
+            else:
+                plan.append(rusher)
+        else:
+            if allow_tank and tanks < max_tanks:
+                plan.append(tank)
+                tanks += 1
+            else:
+                plan.append(rusher)
+
+    return plan
 
 func _spawn_enemy_from_path(scene_path: String):
     var packed := load(scene_path)
@@ -307,6 +376,12 @@ func _spawn_enemy_from_path(scene_path: String):
     if enemy.has_signal("died"):
         if not enemy.died.is_connected(_on_arena_enemy_died):
             enemy.died.connect(_on_arena_enemy_died)
+
+func _spawn_to_max() -> void:
+    # No spawnear enemigos generales durante arena
+    if arena_active:
+        return
+    _spawn_to_max_legacy()
 
 func _spawn_to_max_legacy() -> void:
     _cleanup_dead()
@@ -508,6 +583,8 @@ func _on_arena_enemy_died(_arg = null) -> void:
         _spawn_next_wave()
 
 func _finish_arena():
+    print("🧪 DEBUG: _finish_arena() called. wave_index=", arena_wave_index, " wave_left=", arena_wave_left)
+
     arena_active = false
     arena_cleared = true
 

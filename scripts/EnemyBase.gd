@@ -13,6 +13,13 @@ signal died
 @export var attack_range: float = 34.0
 @export var attack_cooldown: float = 0.9
 
+# --- Crowd control (Scott Pilgrim feel) ---
+@export var crowd_separation_radius: float = 22.0
+@export var crowd_separation_strength: float = 55.0
+
+# max enemigos que pueden intentar atacar al mismo tiempo (por escena)
+@export var max_attackers_at_once: int = 1
+
 # movimiento / combate base
 var direction: float = -1.0
 var atk_cd: float = 0.0
@@ -108,6 +115,8 @@ func _physics_process(delta: float) -> void:
     else:
         visible = true
 
+    _apply_crowd_separation(delta)
+
     move_and_slide()
     _apply_knockdown_landing()
 
@@ -128,11 +137,21 @@ func _on_attack_area_body_entered(body: Node) -> void:
         body.call("take_damage", direction, damage, knockback)
 
 func _do_attack() -> void:
+    if not _can_attack_now():
+        return
+
+    set_meta("is_attacking", true)
+
     atk_cd = attack_cooldown
     attack_area.position.x = 18.0 * direction
     attack_area.set_deferred("monitoring", true)
-    await get_tree().create_timer(0.10).timeout
+
+    await get_tree().create_timer(0.10, true).timeout
     attack_area.set_deferred("monitoring", false)
+
+    # pequeño hold para evitar multi-hits simultáneos
+    await get_tree().create_timer(0.05, true).timeout
+    set_meta("is_attacking", false)
 
 func take_hit(from_dir: float, knock: float = 260.0, dmg: int = 1, lift: float = 0.0) -> void:
     if invuln_timer > 0.0:
@@ -201,6 +220,40 @@ func _flash() -> void:
     modulate = Color(1, 1, 1, 1)
     await get_tree().create_timer(0.05).timeout
     modulate = old
+
+func _apply_crowd_separation(delta: float) -> void:
+    # Empuje suave para que no se apilen encima del player ni entre ellos
+    var nodes := get_tree().get_nodes_in_group("enemies")
+    if nodes.size() <= 1:
+        return
+
+    var push := 0.0
+    for n in nodes:
+        if n == self:
+            continue
+        if not (n is Node2D):
+            continue
+        var other := n as Node2D
+        var dx := global_position.x - other.global_position.x
+        var adx := absf(dx)
+        if adx > 0.001 and adx < crowd_separation_radius:
+            push += signf(dx) * (crowd_separation_radius - adx)
+
+    if push != 0.0:
+        velocity.x += push * crowd_separation_strength * delta
+
+func _count_attackers() -> int:
+    var nodes := get_tree().get_nodes_in_group("enemies")
+    var c := 0
+    for n in nodes:
+        if n != null and is_instance_valid(n) and n.has_meta("is_attacking") and bool(n.get_meta("is_attacking")):
+            c += 1
+    return c
+
+func _can_attack_now() -> bool:
+    if max_attackers_at_once <= 0:
+        return true
+    return _count_attackers() < max_attackers_at_once
 
 func _find_player() -> Node2D:
     var nodes := get_tree().get_nodes_in_group("player")
