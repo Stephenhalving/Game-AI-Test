@@ -24,6 +24,7 @@ var cfg: Dictionary = {}
 var arena_active := false
 var arena_starting := false
 var arena_cleared := false
+var arena_cycle := 1  # 1..3 (para variar plataformas/enemigos sin repetir)
 var arena_wave_index := 0
 var arena_total_waves := 3
 var arena_wave_left := 0
@@ -31,6 +32,7 @@ var arena_waiting_next_wave := false
 var _headless_timer: Timer = null
 var arena_spawn_points: Array = []
 var arena_enemies: Array[Node] = []
+var headless_driver_active := false
 @export var headless_autoplay: bool = false
 @export var debug_force_arena_start: bool = false
 @onready var hud := $HUD
@@ -112,6 +114,12 @@ func _ready() -> void:
 
 func _headless_test_run() -> void:
     print("🧪 HEADLESS: _headless_test_run() ENTER")
+    headless_driver_active = true
+
+    var forced := OS.get_environment("TQ_FORCE_CYCLE")
+    if forced != "":
+        arena_cycle = int(forced)
+        print("🧪 HEADLESS: forced arena_cycle=", arena_cycle)
 
     # limpiar enemigos legacy para test determinístico
     for e in enemies:
@@ -140,7 +148,7 @@ func _headless_test_run() -> void:
     while arena_active and safety < 10:
         safety += 1
 
-        # esperar a que spawnee completa la wave actual (spawn escalonado)
+        # esperar a que spawnee completa la wave actual
         var t := 0.0
         while t < 5.0 and (arena_wave_left <= 0 or arena_enemies.size() < arena_wave_left):
             await _wait(0.1)
@@ -153,20 +161,23 @@ func _headless_test_run() -> void:
             " waited=", t
         )
 
-        # simular matar a todos los de esta wave
+        # simular matar a todos los de esta wave (sin disparar auto-next-wave)
         for e2 in arena_enemies:
             if e2 and is_instance_valid(e2):
-                if e2.has_signal("died"):
-                    e2.emit_signal("died")
+                _on_arena_enemy_died()
                 e2.queue_free()
         arena_enemies.clear()
 
-        # dejar que procese callbacks y spawnee siguiente
-        await _wait(1.8)
+        # dejar que procese frees/callbacks
+        await get_tree().process_frame
+        await get_tree().process_frame
 
-        if not arena_active:
-            break
+        # avanzar a la próxima wave manualmente
+        if arena_active:
+            _spawn_next_wave()
 
+        await _wait(0.2)
+ 
     print("🧪 HEADLESS FINAL:",
         " arena_active=", arena_active,
         " arena_cleared=", arena_cleared,
@@ -177,6 +188,7 @@ func _headless_test_run() -> void:
 
     print("🧪 HEADLESS: quitting")
     call_deferred("_headless_quit")
+    headless_driver_active = false
     return
 
 func _lock_door(locked: bool) -> void:
@@ -236,7 +248,22 @@ func _start_arena() -> void:
     arena_wave_left = 0
 
     # refrescar spawn points (por orden de carga / groups)
-    arena_spawn_points = get_tree().get_nodes_in_group("arena_spawn")
+    # IMPORTANTE: filtramos por arena_cycle para que stage 1 no use spawns de var2/var3
+    var all_spawns: Array = get_tree().get_nodes_in_group("arena_spawn")
+    arena_spawn_points.clear()
+
+    for s in all_spawns:
+        if arena_cycle == 1:
+            # solo spawns base (sin grupos arena_var_2 / arena_var_3)
+            if s.is_in_group("arena_var_2") or s.is_in_group("arena_var_3"):
+                continue
+        elif arena_cycle == 2:
+            # base + var2 (pero NO var3)
+            if s.is_in_group("arena_var_3"):
+                continue
+        # cycle 3: deja todos
+        arena_spawn_points.append(s)
+
     print("🧭 arena_spawn_points(start_arena)=", arena_spawn_points.size())
     for n in arena_spawn_points:
         print("🧭 spawn:", n.name)
@@ -245,6 +272,9 @@ func _start_arena() -> void:
     arena_wave_index = 0
     arena_total_waves = 3 # por ahora fijo
 
+    # --- Arena layout variation by cycle (level_id) ---
+    _apply_arena_variation(arena_cycle)
+     
     _lock_door(true)
     print("🧪 DEBUG: calling _spawn_next_wave() now. arena_active=", arena_active, " wave_index=", arena_wave_index)
     _spawn_next_wave()
@@ -260,7 +290,7 @@ func _spawn_next_wave():
         get_tree().paused = false
         await get_tree().create_timer(0.35, true).timeout
     else:
-        await get_tree().process_frame
+        await get_tree().create_timer(0.01, true).timeout
 
     arena_wave_index += 1
     print("🧪 DEBUG: wave_index incremented ->", arena_wave_index)
@@ -272,12 +302,19 @@ func _spawn_next_wave():
     var plan := _build_wave_plan(arena_wave_index)
     arena_wave_left = plan.size()
     print("🧪 DEBUG: plan size=", arena_wave_left)
+    print("🧪 DEBUG: cycle=", arena_cycle, " wave=", arena_wave_index, " plan=", plan)
 
     # Spawn escalonado: en headless, sin waits
+    var delay := 0.35
+    if arena_cycle == 2:
+        delay = 0.28
+    elif arena_cycle >= 3:
+        delay = 0.24
+
     for enemy_scene_path in plan:
         _spawn_enemy_from_path(enemy_scene_path)
         if not is_headless:
-            await get_tree().create_timer(0.35).timeout
+            await get_tree().create_timer(delay).timeout
 
 func _build_wave_plan(wave_num: int) -> Array:
     var rusher := "res://scenes/EnemyRusher.tscn"
@@ -285,25 +322,47 @@ func _build_wave_plan(wave_num: int) -> Array:
     var ranged := "res://scenes/EnemyRanged.tscn"
 
     var plan: Array = []
-    var allow_tank := wave_num >= 2
-    var max_tanks := 1 if allow_tank else 0
-    var max_ranged := 1  # evita spam de balas para demo
+
+    # Limits (demo friendly) - por ciclo
+    var max_tanks := 0
+    var max_ranged := 0
+
+    # --- Base weights by ARENA CYCLE (1..3) ---
+    # cycle 1: easy (solo rushers)
+    # cycle 2: medium (1 ranged como spice, tank raro)
+    # cycle 3: hard (tank aparece, pero controlado)
+    var p_rusher := 100
+    var p_ranged := 0
+    var p_tank := 0
+
+    if arena_cycle == 2:
+        max_ranged = 1
+        max_tanks = 1
+        p_rusher = 60
+        p_ranged = 30
+        p_tank = 10
+    elif arena_cycle >= 3:
+        max_ranged = 1
+        max_tanks = 1
+        p_rusher = 55
+        p_ranged = 20
+        p_tank = 25
 
     var tanks := 0
     var rangeds := 0
 
-    # Probabilidades (climax en wave 3)
-    var p_rusher := 60
-    var p_ranged := 25
-    var p_tank := 15
+    # --- Wave "climax" tweak (wave 3 slightly spicier) ---
     if wave_num == 1:
-        p_rusher = 75
-        p_ranged = 25
-        p_tank = 0
+        # opener: calmer
+        p_rusher = min(90, p_rusher + 10)
+        p_tank = max(0, p_tank - 10)
+        p_ranged = 100 - p_rusher - p_tank
     elif wave_num == 3:
-        p_rusher = 55
-        p_ranged = 20
-        p_tank = 25  # climax: más chance de tank
+        # climax: a bit more tank chance (but still limited)
+        if arena_cycle >= 2:
+            p_tank = min(35, p_tank + 10)
+            p_rusher = max(45, p_rusher - 5)
+            p_ranged = 100 - p_rusher - p_tank
 
     while plan.size() < 3:
         var roll := randi() % 100
@@ -317,53 +376,76 @@ func _build_wave_plan(wave_num: int) -> Array:
             else:
                 plan.append(rusher)
         else:
-            if allow_tank and tanks < max_tanks:
+            if tanks < max_tanks:
                 plan.append(tank)
                 tanks += 1
             else:
                 plan.append(rusher)
 
+    # --- Guaranteed spice by cycle (demo feel) ---
+    if arena_cycle == 2 and wave_num == 1:
+        # asegurar 1 ranged en la primera wave del stage 2
+        if not plan.has(ranged):
+            plan[0] = ranged
+
+    if arena_cycle >= 3 and (wave_num == 2 or wave_num == 3):
+        # asegurar 1 tank en stage 3 (sin spamear)
+        if not plan.has(tank):
+            plan[0] = tank
+
     return plan
 
-func _spawn_enemy_from_path(scene_path: String):
+func _spawn_enemy_from_path(scene_path: String) -> void:
+    print("🧪 SPAWN_PATH:", scene_path)
+    
     var packed := load(scene_path)
     if packed == null:
         push_error("Enemy scene not found: %s" % scene_path)
         return
 
     var enemy: Node = packed.instantiate()
+    print("🧪 SPAWN_INSTANCED:", enemy, " valid=", is_instance_valid(enemy))
 
+    # parent: Level si existe
     var level := get_node_or_null("Level")
     if level:
         level.add_child(enemy)
     else:
         add_child(enemy)
 
+    # track arena enemies (UNA sola vez)
     arena_enemies.append(enemy)
+    print("🧪 SPAWN_TRACKED: arena_enemies=", arena_enemies.size(), " wave_left=", arena_wave_left)
 
-    # asegurar que se vea por encima del fondo si hace falta
+    # conectar died -> handler (UNA sola vez)
+    if enemy.has_signal("died"):
+        if not enemy.died.is_connected(_on_arena_enemy_died):
+            enemy.died.connect(_on_arena_enemy_died)
+
+    # z para verse arriba
     if enemy is CanvasItem:
         (enemy as CanvasItem).z_index = 20
 
-    var sp2: Node2D = _pick_arena_spawn_point()
-    var pos: Vector2 = sp2.global_position if sp2 != null else Vector2.ZERO
+    # spawn point + entrada con tween
+    var sp: Node2D = _pick_arena_spawn_point()
+    var pos: Vector2 = sp.global_position if sp != null else Vector2.ZERO
+
+    # clamp arena bounds si existen
+    pos.x = clamp(pos.x, ARENA_SPAWN_MIN_X, ARENA_SPAWN_MAX_X)
+    pos.y = clamp(pos.y, ARENA_SPAWN_MIN_Y, ARENA_SPAWN_MAX_Y)
 
     if enemy is Node2D:
         var n := enemy as Node2D
 
-        # "entrada" estilo brawler: spawn desplazado y tween al punto
         var offset := Vector2.ZERO
-        var nm := String(sp2.name) if sp2 != null else ""
+        var nm := String(sp.name) if sp != null else ""
 
         if nm.find("Left") != -1:
             offset = Vector2(-80, 0)
         elif nm.find("Right") != -1:
             offset = Vector2(80, 0)
         elif nm.find("Top") != -1:
-            offset = Vector2(0, -60)    
-
-        pos.x = clamp(pos.x, ARENA_SPAWN_MIN_X, ARENA_SPAWN_MAX_X)
-        pos.y = clamp(pos.y, ARENA_SPAWN_MIN_Y, ARENA_SPAWN_MAX_Y)
+            offset = Vector2(0, -60)
 
         var start_pos := pos + offset
         start_pos.x = clamp(start_pos.x, ARENA_SPAWN_MIN_X, ARENA_SPAWN_MAX_X)
@@ -371,11 +453,6 @@ func _spawn_enemy_from_path(scene_path: String):
 
         n.global_position = start_pos
         create_tween().tween_property(n, "global_position", pos, 0.28)
-
-    # connect died (arena)
-    if enemy.has_signal("died"):
-        if not enemy.died.is_connected(_on_arena_enemy_died):
-            enemy.died.connect(_on_arena_enemy_died)
 
 func _spawn_to_max() -> void:
     # No spawnear enemigos generales durante arena
@@ -458,9 +535,29 @@ func _on_enemy_died(e: Node) -> void:
     _spawn_to_max_legacy()
 
 func _pick_arena_spawn_point() -> Node2D:
-    if arena_spawn_points.size() <= 0:
-        return null
-    var sp: Node = arena_spawn_points[randi() % arena_spawn_points.size()]
+    # elegimos pool de spawn según cycle
+    var pool: Array = []
+
+    if arena_cycle == 1:
+        # solo spawns base (sin var tags)
+        for n in arena_spawn_points:
+            if n and is_instance_valid(n) and (not n.is_in_group("arena_var_2")) and (not n.is_in_group("arena_var_3")):
+                pool.append(n)
+    elif arena_cycle == 2:
+        # base + var2
+        for n in arena_spawn_points:
+            if n and is_instance_valid(n) and (not n.is_in_group("arena_var_3")):
+                pool.append(n)
+    else:
+        # cycle 3: base + var2 + var3 (todo)
+        for n in arena_spawn_points:
+            if n and is_instance_valid(n):
+                pool.append(n)
+
+    if pool.size() <= 0:
+        pool = arena_spawn_points
+
+    var sp: Node = pool[randi() % pool.size()]
     return sp as Node2D
 
 func _pick_arena_spawn_position() -> Vector2:
@@ -470,18 +567,55 @@ func _pick_arena_spawn_position() -> Vector2:
     return Vector2.ZERO
 
 func on_level_complete() -> void:
-    if DisplayServer.get_name() == "headless":
+    # En headless dejamos que siga (para tests) pero no hacemos cambio de escena
+    var is_headless := DisplayServer.get_name() == "headless"
+
+    # Si todavía no completamos las 3 secciones del Level 1, avanzamos a la siguiente “zona”
+    if arena_cycle < 3:
+        if not is_headless:
+            print("🚪 EXIT -> NEXT SECTION (cycle=", arena_cycle, ")")
+
+        # Preparar próxima sección: volver a habilitar trigger de arena y resetear estado
+        arena_active = false
+        arena_cleared = false
+        arena_waiting_next_wave = false
+        arena_wave_left = 0
+        arena_wave_index = 0
+
+        # Cerrar puerta para el próximo tramo
+        _lock_door(true)
+
+        # (Opcional) limpiar enemigos arena que quedaron vivos por seguridad
+        for e in arena_enemies:
+            if e and is_instance_valid(e):
+                e.queue_free()
+        arena_enemies.clear()
+
+        # Reiniciar enemigos legacy también (por seguridad)
+        for e2 in enemies:
+            if e2 and is_instance_valid(e2):
+                e2.queue_free()
+        enemies.clear()
+
+        # Pequeño delay para que el motor procese frees
+        await get_tree().process_frame
+
+        # Arrancar arena de la siguiente sección (va a aplicar variación por arena_cycle)
+        call_deferred("_start_arena")
+        return
+
+    # --- Si arena_cycle >= 3, recién ahí terminamos el Level 1 (demo) ---
+    if is_headless:
         return
 
     add_score(250)
-    print("✅ STAGE CLEAR +250")
+    print("✅ LEVEL 1 CLEAR +250 (demo end)")
     await get_tree().create_timer(0.6).timeout
 
     var lm := get_node_or_null("/root/LevelManagerAuto")
     if lm:
         lm.call_deferred("next_level")
     else:
-        # fallback (por si autoload no existe)
         get_tree().reload_current_scene()
 
 func on_player_died() -> void:
@@ -570,15 +704,21 @@ func _spawn_arena_wave_legacy() -> void:
         await get_tree().create_timer(0.35).timeout
 
 func _on_arena_enemy_died(_arg = null) -> void:
-    arena_wave_left -= 1
+    arena_wave_left = max(arena_wave_left - 1, 0)
 
     if arena_wave_left <= 0:
         if arena_waiting_next_wave:
             return
         arena_waiting_next_wave = true
 
-        await get_tree().create_timer(1.25).timeout
+        # ✅ En headless test, NO autospawnear la siguiente wave.
+        # El headless test va a manejar el avance.
+        if DisplayServer.get_name() == "headless" and headless_driver_active:
+            arena_waiting_next_wave = false
+            return
 
+        # Runtime normal
+        await get_tree().create_timer(1.25, true).timeout
         arena_waiting_next_wave = false
         _spawn_next_wave()
 
@@ -592,6 +732,9 @@ func _finish_arena():
     _grant_arena_key()
 
     _lock_door(false)
+
+    arena_cycle = min(arena_cycle + 1, 3)
+    print("🧩 arena_cycle now =", arena_cycle)
 
 func _grant_arena_key() -> void:
     if has_key:
@@ -645,3 +788,48 @@ func _wait(seconds: float) -> void:
         await t.timeout
     else:
         await get_tree().create_timer(seconds).timeout
+
+func _apply_arena_variation(cycle: int) -> void:
+    # cycle=1: base (sin extras)
+    # cycle=2: habilita plataformas group arena_var_2
+    # cycle=3: habilita plataformas group arena_var_3
+    var use_var2 := (cycle == 2)
+    var use_var3 := (cycle >= 3)
+
+    var var2_nodes := get_tree().get_nodes_in_group("arena_var_2")
+    var var3_nodes := get_tree().get_nodes_in_group("arena_var_3")
+
+    # helper local
+    var _set_enabled := func(n: Node, enabled: bool) -> void:
+        if n == null or not is_instance_valid(n):
+            return
+
+        # visual
+        if n is CanvasItem:
+            (n as CanvasItem).visible = enabled
+
+        # collision (StaticBody2D suele tener CollisionShape2D hijo)
+        var cs := n.get_node_or_null("CollisionShape2D")
+        if cs:
+            cs.set_deferred("disabled", not enabled)
+
+        # extra safety: si hay más shapes
+        for c in n.get_children():
+            if c is CollisionShape2D:
+                (c as CollisionShape2D).set_deferred("disabled", not enabled)
+
+    # por default: apagar todo
+    for n2 in var2_nodes:
+        _set_enabled.call(n2, false)
+    for n3 in var3_nodes:
+        _set_enabled.call(n3, false)
+
+    # prender lo que toca
+    if use_var2:
+        for n2 in var2_nodes:
+            _set_enabled.call(n2, true)
+    if use_var3:
+        for n3 in var3_nodes:
+            _set_enabled.call(n3, true)
+
+    print("🧩 arena variation applied. cycle=", cycle, " var2=", use_var2, " var3=", use_var3)

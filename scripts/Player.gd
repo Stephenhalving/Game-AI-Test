@@ -294,12 +294,12 @@ func _on_attack_area_body_entered(body: Node) -> void:
         if last_attack_heavy and has_method("_shake_cam"):
             _shake_cam(4.0, 0.11)
 
-func take_damage(from_dir: float, dmg: int = 1, knock: float = 360.0) -> void:
+func take_damage(from_dir: float, dmg: int = 1, knock: float = 180.0) -> void:
     if invuln > 0.0:
         return
     hp -= dmg
     invuln = 0.8
-    hurt_timer = 0.18
+    hurt_timer = 0.10
     hurt_knock_x = knock * from_dir
     _set_action("HURT", 0.25)
     if hp <= 0:
