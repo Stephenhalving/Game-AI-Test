@@ -97,9 +97,9 @@ func _ready() -> void:
         gy = str(g.position.y)
 
     randomize()
-    if hud and hud.has_method("set_score"):
+    if hud:
+        hud.init_player(get_node_or_null("Player"))
         hud.set_score(score)
-    if hud and hud.has_method("set_key"):
         hud.set_key(false)
 
     _spawn_to_max()
@@ -425,6 +425,10 @@ func _spawn_enemy_from_path(scene_path: String) -> void:
     # z para verse arriba
     if enemy is CanvasItem:
         (enemy as CanvasItem).z_index = 20
+
+    # conectar HP al HUD (last-hit enemy actualiza la barra)
+    if hud and hud.has_method("track_enemy"):
+        hud.track_enemy(enemy)
 
     # spawn point + entrada con tween
     var sp: Node2D = _pick_arena_spawn_point()
@@ -759,6 +763,9 @@ func _finish_arena() -> void:
     # Apagar trigger para que nunca más reinicie este stage
     if arena_trigger:
         arena_trigger.set_deferred("monitoring", false)
+
+    if hud and hud.has_method("clear_enemy_hp"):
+        hud.clear_enemy_hp()
 
     print("🏁 STAGE COMPLETE (cycle 3). Enable exit/door here.")
 

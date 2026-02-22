@@ -1,6 +1,5 @@
 extends CanvasLayer
 
-@onready var ui: Control = $UI
 @onready var player_hp: ProgressBar = $UI/PlayerHP
 @onready var enemy_hp: ProgressBar = $UI/EnemyHP
 @onready var score_label: Label = $UI/ScoreLabel
@@ -10,6 +9,50 @@ extends CanvasLayer
 var _score: int = 0
 var _combo_text: String = "-"
 var _has_key: bool = false
+
+# --- Player HP (signal-driven) ---
+
+func init_player(p: Node) -> void:
+    if p == null:
+        return
+    if p.has_signal("hp_changed") and not p.hp_changed.is_connected(_on_player_hp_changed):
+        p.hp_changed.connect(_on_player_hp_changed)
+    # set initial bar values
+    var hp = p.get("hp")
+    var mx = p.get("max_hp")
+    if typeof(hp) != TYPE_NIL and typeof(mx) != TYPE_NIL and player_hp:
+        player_hp.max_value = float(mx)
+        player_hp.value = float(hp)
+
+func _on_player_hp_changed(new_hp: int, hp_max: int) -> void:
+    if player_hp:
+        player_hp.max_value = float(hp_max)
+        player_hp.value = float(new_hp)
+
+# --- Enemy HP (signal-driven, tracks last-hit enemy) ---
+
+func track_enemy(enemy: Node) -> void:
+    if enemy == null:
+        return
+    if enemy.has_signal("hp_changed") and not enemy.hp_changed.is_connected(_on_enemy_hp_changed):
+        enemy.hp_changed.connect(_on_enemy_hp_changed)
+    # show current HP immediately
+    var hp = enemy.get("hp")
+    var mx = enemy.get("hp_max")
+    if typeof(hp) != TYPE_NIL and typeof(mx) != TYPE_NIL and enemy_hp:
+        enemy_hp.max_value = float(mx)
+        enemy_hp.value = float(hp)
+
+func clear_enemy_hp() -> void:
+    if enemy_hp:
+        enemy_hp.value = 0
+
+func _on_enemy_hp_changed(new_hp: int, hp_max: int) -> void:
+    if enemy_hp:
+        enemy_hp.max_value = float(hp_max)
+        enemy_hp.value = float(new_hp)
+
+# --- Score / Combo / Key (already event-driven) ---
 
 func set_score(v: int) -> void:
     _score = v
@@ -25,47 +68,3 @@ func set_key(v: bool) -> void:
     _has_key = v
     if key_label:
         key_label.text = "KEY: %s" % ("YES" if _has_key else "NO")
-
-func _process(_delta: float) -> void:
-    var main := get_tree().current_scene
-    if main == null:
-        return
-
-    # PLAYER HP
-    var player := main.get_node_or_null("Player")
-    if player and player_hp:
-        var hp = player.get("hp")
-        var mx = player.get("max_hp")
-        if typeof(hp) != TYPE_NIL and typeof(mx) != TYPE_NIL:
-            player_hp.max_value = float(mx)
-            player_hp.value = float(hp)
-
-    # ENEMY HP (elige enemigo más cercano con hp/hp_max)
-    if enemy_hp:
-        var best = null
-        var best_d = 1e18
-
-        for c in main.get_children():
-            if c == null:
-                continue
-            # Filtrar por tener variables hp y hp_max
-            var ehp = c.get("hp")
-            var emx = c.get("hp_max")
-            if typeof(ehp) == TYPE_NIL or typeof(emx) == TYPE_NIL:
-                continue
-            # distancia al player (si existe)
-            var d = 0.0
-            if player and "global_position" in c:
-                d = player.global_position.distance_squared_to(c.global_position)
-            if d < best_d:
-                best_d = d
-                best = c
-
-        if best != null:
-            var ehp2 = int(best.get("hp"))
-            var emx2 = int(best.get("hp_max"))
-            enemy_hp.max_value = float(emx2)
-            enemy_hp.value = float(ehp2)
-        else:
-            # si no hay enemigos, vaciamos la barra
-            enemy_hp.value = 0

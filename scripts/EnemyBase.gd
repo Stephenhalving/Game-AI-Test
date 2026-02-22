@@ -2,6 +2,7 @@ extends CharacterBody2D
 class_name EnemyBase
 
 signal died
+signal hp_changed(new_hp: int, hp_max: int)
 
 @export var speed: float = 90.0
 @export var gravity: float = 1200.0
@@ -158,6 +159,7 @@ func take_hit(from_dir: float, knock: float = 260.0, dmg: int = 1, lift: float =
         return
 
     hp -= dmg
+    hp_changed.emit(hp, hp_max)
 
     # daño floating text si existe
     var main := get_tree().current_scene

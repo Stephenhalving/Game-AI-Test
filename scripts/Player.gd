@@ -1,5 +1,7 @@
 extends CharacterBody2D
 
+signal hp_changed(new_hp: int, hp_max: int)
+
 @export var speed := 170.0
 @export var gravity := 1200.0
 @export var jump_velocity := -420.0
@@ -60,6 +62,7 @@ func _ready() -> void:
     add_to_group("player")
     print("✅ Player READY")
     hp = max_hp
+    hp_changed.emit(hp, max_hp)
     attack_area.monitoring = false
     if not attack_area.body_entered.is_connected(_on_attack_area_body_entered):
         attack_area.body_entered.connect(_on_attack_area_body_entered)
@@ -298,6 +301,7 @@ func take_damage(from_dir: float, dmg: int = 1, knock: float = 180.0) -> void:
     if invuln > 0.0:
         return
     hp -= dmg
+    hp_changed.emit(hp, max_hp)
     invuln = 0.8
     hurt_timer = 0.10
     hurt_knock_x = knock * from_dir
