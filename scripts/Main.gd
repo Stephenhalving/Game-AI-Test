@@ -98,9 +98,12 @@ func _ready() -> void:
 
     randomize()
     if hud:
-        hud.init_player(get_node_or_null("Player"))
+        var player := get_node_or_null("Player")
+        hud.init_player(player)
         hud.set_score(score)
         hud.set_key(false)
+        if player and player.has_signal("combo_changed"):
+            player.combo_changed.connect(hud._on_combo_changed)
 
     _spawn_to_max()
 

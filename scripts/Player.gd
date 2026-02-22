@@ -1,6 +1,7 @@
 extends CharacterBody2D
 
 signal hp_changed(new_hp: int, hp_max: int)
+signal combo_changed(step: int)
 
 @export var speed := 170.0
 @export var gravity := 1200.0
@@ -96,6 +97,11 @@ func _physics_process(delta: float) -> void:
     invuln = max(0.0, invuln - delta)
     hurt_timer = max(0.0, hurt_timer - delta)
     anim_lock = max(0.0, anim_lock - delta)
+
+    # --- COMBO EXPIRY ---
+    if combo_step > 0 and combo_timer <= 0.0:
+        combo_step = 0
+        combo_changed.emit(0)
 
     # --- JUMP BUFFER + COYOTE ---
     if pressed_jump:
@@ -231,12 +237,7 @@ func _do_combo_attack() -> void:
         elif anim.has_animation("attack"):
             anim.play("attack")
 
-    # HUD combo text (x1/x2/x3)
-    var main := get_tree().current_scene
-    if main and main.has_node("HUD"):
-        var h := main.get_node("HUD")
-        if h and h.has_method("set_combo"):
-            h.set_combo("x%d" % combo_step)
+    combo_changed.emit(combo_step)
 
     # Aplicar stats por golpe
     if combo_step == 1:
