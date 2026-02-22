@@ -1,0 +1,121 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/Stage3.gd" id="1_stage3"]
+[ext_resource type="Script" path="res://scripts/Player.gd" id="2_player"]
+[ext_resource type="Script" path="res://scripts/HUD.gd" id="3_hud"]
+[ext_resource type="PackedScene" path="res://scenes/Door.tscn" id="4_door"]
+[ext_resource type="PackedScene" path="res://scenes/Level_Stage3.tscn" id="5_level"]
+
+[sub_resource type="RectangleShape2D" id="player_shape"]
+size = Vector2(16, 24)
+
+[sub_resource type="RectangleShape2D" id="attack_shape"]
+size = Vector2(22, 18)
+
+[node name="Stage3" type="Node2D"]
+script = ExtResource("1_stage3")
+
+[node name="Level" parent="." instance=ExtResource("5_level")]
+position = Vector2(0, 0)
+
+[node name="Player" type="CharacterBody2D" parent="."]
+position = Vector2(80, 160)
+collision_layer = 2
+collision_mask = 4
+script = ExtResource("2_player")
+
+[node name="Visual" type="Node2D" parent="Player"]
+
+[node name="PlayerBody" type="Polygon2D" parent="Player/Visual"]
+polygon = PackedVector2Array(-8, -12, 8, -12, 8, 12, -8, 12)
+color = Color(0.2, 0.65, 1, 1)
+
+[node name="PlayerHead" type="Polygon2D" parent="Player/Visual"]
+polygon = PackedVector2Array(-5, -22, 5, -22, 5, -14, -5, -14)
+color = Color(0.55, 0.82, 1, 1)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player"]
+shape = SubResource("player_shape")
+
+[node name="AttackArea" type="Area2D" parent="Player"]
+collision_layer = 0
+collision_mask = 4
+monitoring = false
+
+[node name="AttackCollision" type="CollisionShape2D" parent="Player/AttackArea"]
+shape = SubResource("attack_shape")
+
+[node name="Camera2D" type="Camera2D" parent="Player"]
+zoom = Vector2(2, 2)
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="Player"]
+
+[node name="FloorRay" type="RayCast2D" parent="Player"]
+target_position = Vector2(0, 18)
+
+[node name="WallRayLeft" type="RayCast2D" parent="Player"]
+target_position = Vector2(-10, 0)
+
+[node name="WallRayRight" type="RayCast2D" parent="Player"]
+target_position = Vector2(10, 0)
+
+[node name="HurtArea" type="Area2D" parent="Player"]
+collision_layer = 0
+collision_mask = 4
+
+[node name="HurtShape" type="CollisionShape2D" parent="Player/HurtArea"]
+shape = SubResource("player_shape")
+
+[node name="HUD" type="CanvasLayer" parent="."]
+script = ExtResource("3_hud")
+
+[node name="UI" type="Control" parent="HUD"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="PlayerHP" type="ProgressBar" parent="HUD/UI"]
+layout_mode = 0
+offset_left = 12.0
+offset_top = 12.0
+offset_right = 260.0
+offset_bottom = 34.0
+value = 10.0
+
+[node name="EnemyHP" type="ProgressBar" parent="HUD/UI"]
+layout_mode = 0
+offset_left = 12.0
+offset_top = 42.0
+offset_right = 260.0
+offset_bottom = 64.0
+value = 3.0
+
+[node name="ScoreLabel" type="Label" parent="HUD/UI"]
+layout_mode = 0
+offset_left = 280.0
+offset_top = 12.0
+offset_right = 560.0
+offset_bottom = 34.0
+text = "SCORE: 0"
+
+[node name="ComboLabel" type="Label" parent="HUD/UI"]
+layout_mode = 0
+offset_left = 280.0
+offset_top = 42.0
+offset_right = 560.0
+offset_bottom = 64.0
+text = ""
+
+[node name="KeyLabel" type="Label" parent="HUD/UI"]
+layout_mode = 0
+offset_left = 12.0
+offset_top = 72.0
+offset_right = 260.0
+offset_bottom = 94.0
+text = "KEY: NO"
+
+[node name="Door" parent="." instance=ExtResource("4_door")]
+position = Vector2(2150, 158)

@@ -1,0 +1,146 @@
+[gd_scene format=3]
+
+[sub_resource type="RectangleShape2D" id="ground_shape"]
+size = Vector2(2300, 80)
+
+[sub_resource type="RectangleShape2D" id="wall_shape"]
+size = Vector2(40, 600)
+
+[sub_resource type="RectangleShape2D" id="plat_stair"]
+size = Vector2(90, 14)
+
+[sub_resource type="RectangleShape2D" id="trig_shape"]
+size = Vector2(100, 80)
+
+[sub_resource type="RectangleShape2D" id="barrier_shape"]
+size = Vector2(12, 120)
+
+[sub_resource type="RectangleShape2D" id="door_zone_shape"]
+size = Vector2(40, 80)
+
+[sub_resource type="RectangleShape2D" id="boss_trig_shape"]
+size = Vector2(120, 80)
+
+[node name="Level_Stage3" type="Node2D"]
+
+[node name="Background" type="Polygon2D" parent="."]
+z_index = -10
+polygon = PackedVector2Array(-200, -400, 2400, -400, 2400, 500, -200, 500)
+color = Color(0.06, 0.04, 0.04, 1)
+
+[node name="Ground" type="StaticBody2D" parent="."]
+position = Vector2(1050, 220)
+collision_layer = 4
+collision_mask = 6
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Ground"]
+shape = SubResource("ground_shape")
+
+[node name="Vis" type="Polygon2D" parent="Ground"]
+polygon = PackedVector2Array(-1150, -40, 1150, -40, 1150, 40, -1150, 40)
+color = Color(0.25, 0.18, 0.18, 1)
+
+[node name="LeftWall" type="StaticBody2D" parent="."]
+position = Vector2(-100, 0)
+collision_layer = 4
+collision_mask = 6
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="LeftWall"]
+shape = SubResource("wall_shape")
+
+[node name="RightWall" type="StaticBody2D" parent="."]
+position = Vector2(2300, 0)
+collision_layer = 4
+collision_mask = 6
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="RightWall"]
+shape = SubResource("wall_shape")
+
+[node name="StairA" type="StaticBody2D" parent="."]
+position = Vector2(1450, 186)
+collision_layer = 4
+collision_mask = 6
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="StairA"]
+shape = SubResource("plat_stair")
+
+[node name="Vis" type="Polygon2D" parent="StairA"]
+polygon = PackedVector2Array(-45, -7, 45, -7, 45, 7, -45, 7)
+color = Color(0.5, 0.3, 0.2, 0.9)
+
+[node name="StairB" type="StaticBody2D" parent="."]
+position = Vector2(1545, 164)
+collision_layer = 4
+collision_mask = 6
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="StairB"]
+shape = SubResource("plat_stair")
+
+[node name="Vis" type="Polygon2D" parent="StairB"]
+polygon = PackedVector2Array(-45, -7, 45, -7, 45, 7, -45, 7)
+color = Color(0.5, 0.3, 0.2, 0.9)
+
+[node name="StairC" type="StaticBody2D" parent="."]
+position = Vector2(1640, 142)
+collision_layer = 4
+collision_mask = 6
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="StairC"]
+shape = SubResource("plat_stair")
+
+[node name="Vis" type="Polygon2D" parent="StairC"]
+polygon = PackedVector2Array(-45, -7, 45, -7, 45, 7, -45, 7)
+color = Color(0.5, 0.3, 0.2, 0.9)
+
+[node name="LockedDoorBarrier" type="StaticBody2D" parent="."]
+position = Vector2(950, 182)
+collision_layer = 4
+collision_mask = 6
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="LockedDoorBarrier"]
+shape = SubResource("barrier_shape")
+
+[node name="Vis" type="Polygon2D" parent="LockedDoorBarrier"]
+polygon = PackedVector2Array(-6, -60, 6, -60, 6, 60, -6, 60)
+color = Color(0.8, 0.1, 0.1, 1)
+
+[node name="LockedDoorZone" type="Area2D" parent="."]
+position = Vector2(940, 188)
+collision_layer = 0
+collision_mask = 2
+monitoring = false
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="LockedDoorZone"]
+shape = SubResource("door_zone_shape")
+
+[node name="CombatTrigger1" type="Area2D" parent="."]
+position = Vector2(540, 188)
+collision_layer = 0
+collision_mask = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="CombatTrigger1"]
+shape = SubResource("trig_shape")
+
+[node name="CombatTrigger2" type="Area2D" parent="."]
+position = Vector2(1040, 188)
+collision_layer = 0
+collision_mask = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="CombatTrigger2"]
+shape = SubResource("trig_shape")
+
+[node name="StairTrigger" type="Area2D" parent="."]
+position = Vector2(1390, 188)
+collision_layer = 0
+collision_mask = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="StairTrigger"]
+shape = SubResource("trig_shape")
+
+[node name="BossTrigger" type="Area2D" parent="."]
+position = Vector2(1820, 188)
+collision_layer = 0
+collision_mask = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="BossTrigger"]
+shape = SubResource("boss_trig_shape")

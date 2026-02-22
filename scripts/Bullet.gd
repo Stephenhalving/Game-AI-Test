@@ -1,7 +1,7 @@
 extends Area2D
 
 @export var speed := 260
-var dir := 1
+var dir: float = 1.0
 
 func _ready() -> void:
     monitoring = true

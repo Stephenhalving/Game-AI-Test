@@ -45,6 +45,13 @@ var juggle_immunity: float = 0.0
 # F5.3 tech control
 var tech_cd: float = 0.0
 
+# Patrol
+@export var patrol_mode: bool = false
+@export var patrol_range: float = 80.0
+var _patrol_origin: Vector2 = Vector2.ZERO
+var _patrol_initialized: bool = false
+var _patrol_dir: float = 1.0
+
 @onready var attack_area: Area2D = $AttackArea
 var player: Node2D = null
 
@@ -54,6 +61,7 @@ func _ready() -> void:
     attack_area.monitoring = false
     if not attack_area.body_entered.is_connected(_on_attack_area_body_entered):
         attack_area.body_entered.connect(_on_attack_area_body_entered)
+    _patrol_origin = global_position
 
 func _physics_process(delta: float) -> void:
     atk_cd = max(0.0, atk_cd - delta)
@@ -72,16 +80,12 @@ func _physics_process(delta: float) -> void:
     if player == null:
         player = _find_player()
 
-    # TECH (jump): levantada rápida (con ventana + cooldown)
-    if Input.is_action_just_pressed("jump") and tech_cd <= 0.0:
-        # ventana: solo al inicio del knockdown
+    # TECH: random AI recovery from knockdown (15% chance per ~0.5s window)
+    if tech_cd <= 0.0 and randf() < 0.008:
         if down_timer > 0.35:
             down_timer = min(down_timer, 0.10)
             invuln_timer = max(invuln_timer, 0.22)
             tech_cd = 0.60
-            var main := get_tree().current_scene
-            if main and main.has_method("spawn_floating_text"):
-                main.spawn_floating_text(global_position + Vector2(0, -18), "TECH!")
         elif getup_timer > 0.0:
             getup_timer = min(getup_timer, 0.14)
             invuln_timer = max(invuln_timer, 0.22)
@@ -108,7 +112,11 @@ func _physics_process(delta: float) -> void:
     elif hitstun > 0.0:
         velocity.x = knock_x
     else:
-        _process_ai(delta)
+        var in_range := player != null and absf(player.global_position.x - global_position.x) <= chase_range
+        if patrol_mode and not in_range:
+            _process_patrol(delta)
+        else:
+            _process_ai(delta)
 
     # F5.3 blink (i-frames visibles)
     if invuln_timer > 0.0:
@@ -123,6 +131,20 @@ func _physics_process(delta: float) -> void:
 
 func _process_ai(_delta: float) -> void:
     pass
+
+func _process_patrol(_delta: float) -> void:
+    if not _patrol_initialized:
+        _patrol_origin = global_position
+        _patrol_initialized = true
+
+    var dist := global_position.x - _patrol_origin.x
+    if dist >= patrol_range:
+        _patrol_dir = -1.0
+    elif dist <= -patrol_range:
+        _patrol_dir = 1.0
+
+    direction = _patrol_dir
+    velocity.x = _patrol_dir * speed * 0.45
 
 @export var damage: int = 1
 @export var knockback: float = 420.0

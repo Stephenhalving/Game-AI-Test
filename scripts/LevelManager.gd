@@ -3,15 +3,18 @@ class_name LevelManager
 
 var current_level: int = 0
 var last_score: int = 0
+var has_car_key: bool = false
 
 var level_scenes: Array[String] = [
-    "res://scenes/Main.tscn",
-    "res://scenes/Main2.tscn",
+    "res://scenes/Main.tscn",    # Stage 1 – Arena
+    "res://scenes/Stage2.tscn",  # Stage 2 – Ciudad en Ruinas
+    "res://scenes/Stage3.tscn",  # Stage 3 – La Casa del Poder
 ]
 
 func reset() -> void:
     current_level = 0
     last_score = 0
+    has_car_key = false
 
 func start_game() -> void:
     reset()
@@ -35,6 +38,12 @@ func game_over() -> void:
     get_tree().paused = false
     Engine.time_scale = 1.0
     get_tree().change_scene_to_file("res://scenes/GameOver.tscn")
+
+func win_game() -> void:
+    print("🏆 WIN score=", last_score)
+    get_tree().paused = false
+    Engine.time_scale = 1.0
+    get_tree().change_scene_to_file("res://scenes/WinScreen.tscn")
 
 
 

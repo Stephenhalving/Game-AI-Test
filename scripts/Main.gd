@@ -792,6 +792,11 @@ func _set_door_exit_enabled(enabled: bool) -> void:
     if exit_area:
         exit_area.set_deferred("monitoring", enabled)
 
+func hitstop(duration: float, freeze_scale: float = 0.05) -> void:
+    Engine.time_scale = freeze_scale
+    await get_tree().create_timer(duration, true, false, true).timeout
+    Engine.time_scale = 1.0
+
 func _headless_quit() -> void:
     if _headless_timer and is_instance_valid(_headless_timer):
         _headless_timer.queue_free()

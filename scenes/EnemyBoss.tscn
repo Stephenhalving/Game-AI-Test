@@ -1,0 +1,33 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/EnemyBoss.gd" id="1_boss"]
+
+[sub_resource type="RectangleShape2D" id="body_shape"]
+size = Vector2(28, 40)
+
+[sub_resource type="RectangleShape2D" id="atk_shape"]
+size = Vector2(40, 28)
+
+[node name="EnemyBoss" type="CharacterBody2D"]
+script = ExtResource("1_boss")
+collision_layer = 4
+collision_mask = 6
+
+[node name="BossBody" type="Polygon2D" parent="."]
+polygon = PackedVector2Array(-14, -20, 14, -20, 14, 20, -14, 20)
+color = Color(0.45, 0.0, 0.55, 1)
+
+[node name="BossHead" type="Polygon2D" parent="."]
+polygon = PackedVector2Array(-10, -32, 10, -32, 10, -22, -10, -22)
+color = Color(0.6, 0.1, 0.7, 1)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("body_shape")
+
+[node name="AttackArea" type="Area2D" parent="."]
+monitoring = false
+collision_layer = 4
+collision_mask = 2
+
+[node name="AttackCollision" type="CollisionShape2D" parent="AttackArea"]
+shape = SubResource("atk_shape")
