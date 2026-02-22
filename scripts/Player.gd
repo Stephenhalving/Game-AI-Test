@@ -29,7 +29,7 @@ var state: int = State.IDLE
 @export var friction := 1400.0
 @export var max_fall := 900.0
 
-# salto “pro”: coyote + buffer
+# salto "pro": coyote + buffer
 @export var coyote_time := 0.10
 @export var jump_buffer := 0.10
 var coyote := 0.0

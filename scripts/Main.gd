@@ -586,7 +586,7 @@ func on_level_complete() -> void:
 
     if arena_cycle < 3:
         if not is_headless:
-            print(“🚪 STAGE “, arena_cycle, “ -> STAGE “, arena_cycle + 1)
+            print("🚪 STAGE ", arena_cycle, " -> STAGE ", arena_cycle + 1)
 
         arena_cycle += 1  # incrementar aquí, no en _finish_arena
         arena_active = false
@@ -606,7 +606,7 @@ func on_level_complete() -> void:
         enemies.clear()
 
         await get_tree().process_frame
-        call_deferred(“_start_arena”)
+        call_deferred("_start_arena")
         return
 
     # arena_cycle >= 3 → todos los stages completos → siguiente nivel
@@ -614,13 +614,13 @@ func on_level_complete() -> void:
         return
 
     add_score(250)
-    print(“✅ NIVEL COMPLETO +250”)
+    print("✅ NIVEL COMPLETO +250")
     await get_tree().create_timer(0.6).timeout
 
-    var lm := get_node_or_null(“/root/LevelManagerAuto”)
+    var lm := get_node_or_null("/root/LevelManagerAuto")
     if lm:
-        lm.set(“last_score”, score)
-        lm.call_deferred(“next_level”)
+        lm.set("last_score", score)
+        lm.call_deferred("next_level")
     else:
         get_tree().reload_current_scene()
 
