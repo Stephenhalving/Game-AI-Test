@@ -5,295 +5,353 @@ signal died
 signal hp_changed(new_hp: int, hp_max: int)
 
 @export var speed: float = 90.0
-@export var gravity: float = 1200.0
 
 @export var hp_max: int = 3
 @export var hp: int = 3
 
-@export var chase_range: float = 260.0
+@export var chase_range: float  = 260.0
 @export var attack_range: float = 34.0
 @export var attack_cooldown: float = 0.9
 
 # --- Crowd control (Scott Pilgrim feel) ---
-@export var crowd_separation_radius: float = 22.0
+@export var crowd_separation_radius: float   = 22.0
 @export var crowd_separation_strength: float = 55.0
 
-# max enemigos que pueden intentar atacar al mismo tiempo (por escena)
+# max enemigos que pueden atacar al mismo tiempo
 @export var max_attackers_at_once: int = 1
 
 # movimiento / combate base
-var direction: float = -1.0
-var atk_cd: float = 0.0
-var hitstun: float = 0.0
-var knock_x: float = 0.0
+var direction: float  = -1.0
+var atk_cd: float     = 0.0
+var hitstun: float    = 0.0
+var knock_x: float    = 0.0
 
-# estados F5.2.1
-var stun_timer: float = 0.0
-var down_timer: float = 0.0
-var getup_timer: float = 0.0
-var invuln_timer: float = 0.0
-var was_down: bool = false
+# estados
+var stun_timer:    float = 0.0
+var down_timer:    float = 0.0
+var getup_timer:   float = 0.0
+var invuln_timer:  float = 0.0
+var was_down: bool       = false
 
 # knockdown SOLO heavy
 var pending_knockdown: bool = false
 
-# F5.2.2 juggle
+# juggle counter
 const MAX_AIR_HITS := 3
-var air_hits: int = 0
+var air_hits: int        = 0
 var juggle_immunity: float = 0.0
 
-# F5.3 tech control
+# tech control
 var tech_cd: float = 0.0
 
 # Patrol
-@export var patrol_mode: bool = false
+@export var patrol_mode: bool  = false
 @export var patrol_range: float = 80.0
-var _patrol_origin: Vector2 = Vector2.ZERO
-var _patrol_initialized: bool = false
-var _patrol_dir: float = 1.0
+var _patrol_origin: Vector2    = Vector2.ZERO
+var _patrol_initialized: bool  = false
+var _patrol_dir: float         = 1.0
 
 @onready var attack_area: Area2D = $AttackArea
 var player: Node2D = null
 
+# Fase 2 – sprite
+var char_type: String = "rusher"
+var sprite: Sprite2D  = null
+
+
 func _ready() -> void:
-    add_to_group("enemies")
-    hp = hp_max
-    attack_area.monitoring = false
-    if not attack_area.body_entered.is_connected(_on_attack_area_body_entered):
-        attack_area.body_entered.connect(_on_attack_area_body_entered)
-    _patrol_origin = global_position
+	add_to_group("enemies")
+	hp = hp_max
+	attack_area.monitoring = false
+	if not attack_area.body_entered.is_connected(_on_attack_area_body_entered):
+		attack_area.body_entered.connect(_on_attack_area_body_entered)
+	_patrol_origin = global_position
+
+	sprite = get_node_or_null("Visual/Sprite2D")
+	if sprite:
+		sprite.texture = _sg_tex(char_type + "_idle")
+
 
 func _physics_process(delta: float) -> void:
-    atk_cd = max(0.0, atk_cd - delta)
+	atk_cd        = max(0.0, atk_cd        - delta)
+	hitstun       = max(0.0, hitstun       - delta)
+	stun_timer    = max(0.0, stun_timer    - delta)
+	down_timer    = max(0.0, down_timer    - delta)
+	getup_timer   = max(0.0, getup_timer   - delta)
+	invuln_timer  = max(0.0, invuln_timer  - delta)
+	juggle_immunity = max(0.0, juggle_immunity - delta)
+	tech_cd       = max(0.0, tech_cd       - delta)
 
-    # timers
-    hitstun = max(0.0, hitstun - delta)
-    stun_timer = max(0.0, stun_timer - delta)
-    down_timer = max(0.0, down_timer - delta)
-    getup_timer = max(0.0, getup_timer - delta)
-    invuln_timer = max(0.0, invuln_timer - delta)
-    juggle_immunity = max(0.0, juggle_immunity - delta)
-    tech_cd = max(0.0, tech_cd - delta)
+	if player == null:
+		player = _find_player()
 
-    velocity.y += gravity * delta
+	# TECH: random AI recovery from knockdown (~15% chance per ~0.5 s)
+	if tech_cd <= 0.0 and randf() < 0.008:
+		if down_timer > 0.35:
+			down_timer    = min(down_timer, 0.10)
+			invuln_timer  = max(invuln_timer, 0.22)
+			tech_cd       = 0.60
+		elif getup_timer > 0.0:
+			getup_timer   = min(getup_timer, 0.14)
+			invuln_timer  = max(invuln_timer, 0.22)
+			tech_cd       = 0.60
 
-    if player == null:
-        player = _find_player()
+	# DOWN → GETUP
+	if was_down and down_timer <= 0.0:
+		was_down     = false
+		getup_timer  = 0.28
+		invuln_timer = 0.28
+		attack_area.set_deferred("monitoring", false)
 
-    # TECH: random AI recovery from knockdown (15% chance per ~0.5s window)
-    if tech_cd <= 0.0 and randf() < 0.008:
-        if down_timer > 0.35:
-            down_timer = min(down_timer, 0.10)
-            invuln_timer = max(invuln_timer, 0.22)
-            tech_cd = 0.60
-        elif getup_timer > 0.0:
-            getup_timer = min(getup_timer, 0.14)
-            invuln_timer = max(invuln_timer, 0.22)
-            tech_cd = 0.60
+	# prioridad de estados
+	if down_timer > 0.0:
+		velocity.x = 0.0
+		velocity.y = 0.0
+		attack_area.set_deferred("monitoring", false)
+	elif getup_timer > 0.0:
+		velocity.x = 0.0
+		velocity.y = 0.0
+		attack_area.set_deferred("monitoring", false)
+	elif stun_timer > 0.0:
+		velocity.x = knock_x
+		velocity.y = 0.0
+		attack_area.set_deferred("monitoring", false)
+	elif hitstun > 0.0:
+		velocity.x = knock_x
+	else:
+		var in_range := player != null and \
+			absf(player.global_position.x - global_position.x) <= chase_range
+		if patrol_mode and not in_range:
+			_process_patrol(delta)
+		else:
+			_process_ai(delta)
 
+	# blink i-frames
+	if invuln_timer > 0.0:
+		visible = (int(Time.get_ticks_msec() / 80.0) % 2) == 0
+	else:
+		visible = true
 
-    # transición DOWN -> GETUP
-    if was_down and down_timer <= 0.0:
-        was_down = false
-        getup_timer = 0.28
-        invuln_timer = 0.28
-        attack_area.set_deferred("monitoring", false)
+	_apply_crowd_separation(delta)
 
-    # estados (prioridad)
-    if down_timer > 0.0:
-        velocity.x = 0.0
-        attack_area.set_deferred("monitoring", false)
-    elif getup_timer > 0.0:
-        velocity.x = 0.0
-        attack_area.set_deferred("monitoring", false)
-    elif stun_timer > 0.0:
-        velocity.x = knock_x
-        attack_area.set_deferred("monitoring", false)
-    elif hitstun > 0.0:
-        velocity.x = knock_x
-    else:
-        var in_range := player != null and absf(player.global_position.x - global_position.x) <= chase_range
-        if patrol_mode and not in_range:
-            _process_patrol(delta)
-        else:
-            _process_ai(delta)
+	move_and_slide()
 
-    # F5.3 blink (i-frames visibles)
-    if invuln_timer > 0.0:
-        visible = (int(Time.get_ticks_msec() / 80.0) % 2) == 0
-    else:
-        visible = true
+	_apply_knockdown_belt()
 
-    _apply_crowd_separation(delta)
+	# Belt scroller: clamp Y, z-index, perspectiva
+	position.y = clamp(global_position.y, 148.0, 212.0)
+	z_index    = int(global_position.y)
+	var y_t    := (global_position.y - 148.0) / 64.0
+	scale       = Vector2.ONE * lerp(0.80, 1.0, clampf(y_t, 0.0, 1.0))
 
-    move_and_slide()
-    _apply_knockdown_landing()
+	_update_sprite()
+
 
 func _process_ai(_delta: float) -> void:
-    pass
+	# Base: Y chase por defecto (los subtipos pueden sobrescribirlo)
+	if player == null:
+		return
+	var dy := player.global_position.y - global_position.y
+	velocity.y = signf(dy) * speed * 0.55 if absf(dy) > 3.0 else 0.0
+
 
 func _process_patrol(_delta: float) -> void:
-    if not _patrol_initialized:
-        _patrol_origin = global_position
-        _patrol_initialized = true
+	if not _patrol_initialized:
+		_patrol_origin      = global_position
+		_patrol_initialized = true
 
-    var dist := global_position.x - _patrol_origin.x
-    if dist >= patrol_range:
-        _patrol_dir = -1.0
-    elif dist <= -patrol_range:
-        _patrol_dir = 1.0
+	var dist := global_position.x - _patrol_origin.x
+	if dist >= patrol_range:
+		_patrol_dir = -1.0
+	elif dist <= -patrol_range:
+		_patrol_dir = 1.0
 
-    direction = _patrol_dir
-    velocity.x = _patrol_dir * speed * 0.45
+	direction  = _patrol_dir
+	velocity.x = _patrol_dir * speed * 0.45
+	velocity.y = 0.0
 
-@export var damage: int = 1
+
+@export var damage: float   = 1
 @export var knockback: float = 420.0
 
-func _on_attack_area_body_entered(body: Node) -> void:
-    if body == null:
-        return
-    if not body.is_in_group("player"):
-        return
 
-    # Player.gd actual espera (from_dir, dmg, knock)
-    if body.has_method("take_damage"):
-        body.call("take_damage", direction, damage, knockback)
+func _on_attack_area_body_entered(body: Node) -> void:
+	if body == null:
+		return
+	if not body.is_in_group("player"):
+		return
+	if body.has_method("take_damage"):
+		body.call("take_damage", direction, damage, knockback)
+
 
 func _do_attack() -> void:
-    if not _can_attack_now():
-        return
+	if not _can_attack_now():
+		return
 
-    set_meta("is_attacking", true)
+	set_meta("is_attacking", true)
 
-    atk_cd = attack_cooldown
-    attack_area.position.x = 18.0 * direction
-    attack_area.set_deferred("monitoring", true)
+	atk_cd = attack_cooldown
+	attack_area.position.x = 18.0 * direction
+	attack_area.set_deferred("monitoring", true)
 
-    await get_tree().create_timer(0.10, true).timeout
-    attack_area.set_deferred("monitoring", false)
+	await get_tree().create_timer(0.10, true).timeout
+	attack_area.set_deferred("monitoring", false)
 
-    # pequeño hold para evitar multi-hits simultáneos
-    await get_tree().create_timer(0.05, true).timeout
-    set_meta("is_attacking", false)
+	await get_tree().create_timer(0.05, true).timeout
+	set_meta("is_attacking", false)
+
 
 func take_hit(from_dir: float, knock: float = 260.0, dmg: int = 1, lift: float = 0.0) -> void:
-    if invuln_timer > 0.0:
-        return
+	if invuln_timer > 0.0:
+		return
 
-    hp -= dmg
-    hp_changed.emit(hp, hp_max)
+	hp -= dmg
+	hp_changed.emit(hp, hp_max)
 
-    # daño floating text si existe
-    var main := get_tree().current_scene
-    if main and main.has_method("spawn_damage_text"):
-        main.spawn_damage_text(global_position, dmg)
+	var main := get_tree().current_scene
+	if main and main.has_method("spawn_damage_text"):
+		main.spawn_damage_text(global_position, dmg)
 
-    _flash()
+	_flash()
+	_spawn_hit_effect(global_position)
 
-    # juggle counter
-    if not is_on_floor():
-        air_hits += 1
-    else:
-        air_hits = 0
+	# juggle counter
+	if not is_on_floor():
+		air_hits += 1
+	else:
+		air_hits = 0
 
-    # si excede hits en aire, cortamos lift por un rato (anti infinito)
-    if air_hits >= MAX_AIR_HITS:
-        juggle_immunity = 0.6
-        lift = 0.0
-        pending_knockdown = false
+	if air_hits >= MAX_AIR_HITS:
+		juggle_immunity = 0.6
+		lift = 0.0
+		pending_knockdown = false
 
-    # knock horizontal
-    knock_x = knock * from_dir * 0.55
-    velocity.x = knock_x
+	# knock horizontal
+	knock_x    = knock * from_dir * 0.55
+	velocity.x = knock_x
 
-    # stun/hitstun base
-    hitstun = 0.10
-    stun_timer = 0.06
-    if dmg >= 2:
-        hitstun = 0.12
-        stun_timer = 0.10
+	# stun/hitstun base
+	hitstun    = 0.10
+	stun_timer = 0.06
+	if dmg >= 2:
+		hitstun    = 0.12
+		stun_timer = 0.10
 
-    # heavy/launcher (solo si no hay juggle immunity)
-    if lift > 0.0 and juggle_immunity <= 0.0:
-        pending_knockdown = true
-        hitstun = 0.18
-        stun_timer = 0.12
-        velocity.y = -lift
+	# heavy/launcher (sin velocity.y — belt scroller)
+	if lift > 0.0 and juggle_immunity <= 0.0:
+		pending_knockdown = true
+		hitstun    = 0.18
+		stun_timer = 0.12
 
-    if hp <= 0:
-        call_deferred("_die")
+	if hp <= 0:
+		call_deferred("_die")
 
-func _apply_knockdown_landing() -> void:
-    if is_on_floor():
-        # reseteo de juggle al tocar piso
-        air_hits = 0
 
-    # knockdown SOLO si venía de heavy
-    if pending_knockdown and is_on_floor():
-        pending_knockdown = false
-        down_timer = 0.60
-        was_down = true
-        attack_area.set_deferred("monitoring", false)
+func _apply_knockdown_belt() -> void:
+	air_hits = 0  # siempre en suelo en belt scroller
+	if pending_knockdown:
+		pending_knockdown = false
+		down_timer = 0.60
+		was_down   = true
+		attack_area.set_deferred("monitoring", false)
+
 
 func _die() -> void:
-    emit_signal("died")
-    queue_free()
+	emit_signal("died")
+	queue_free()
+
 
 func _flash() -> void:
-    var old := modulate
-    modulate = Color(1, 1, 1, 1)
-    await get_tree().create_timer(0.05).timeout
-    modulate = old
+	var old := modulate
+	modulate = Color(1, 1, 1, 1)
+	await get_tree().create_timer(0.05).timeout
+	modulate = old
+
+
+func _spawn_hit_effect(pos: Vector2) -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	if not ResourceLoader.exists("res://scenes/HitEffect.tscn"):
+		return
+	var fx = preload("res://scenes/HitEffect.tscn").instantiate()
+	get_tree().current_scene.add_child(fx)
+	fx.global_position = pos
+	var particles := fx.get_node_or_null("GPUParticles2D")
+	if particles:
+		particles.emitting = true
+	fx.get_tree().create_timer(1.0).timeout.connect(fx.queue_free)
+
+
+func _update_sprite() -> void:
+	if not sprite:
+		return
+	var state_name := "idle"
+	if hitstun > 0.0 or stun_timer > 0.0:
+		state_name = "hurt"
+	elif velocity.length() > 5.0:
+		state_name = "walk"
+	sprite.texture = _sg_tex(char_type + "_" + state_name)
+	sprite.flip_h  = (direction < 0)
+
 
 func _apply_crowd_separation(delta: float) -> void:
-    var push_x := 0.0
+	var push_x := 0.0
 
-    # Separar de otros enemigos
-    var nodes := get_tree().get_nodes_in_group("enemies")
-    for n in nodes:
-        if n == self or not (n is Node2D):
-            continue
-        var other := n as Node2D
-        var dx := global_position.x - other.global_position.x
-        var adx := absf(dx)
-        if adx > 0.001 and adx < crowd_separation_radius:
-            push_x += signf(dx) * (crowd_separation_radius - adx)
+	var nodes := get_tree().get_nodes_in_group("enemies")
+	for n in nodes:
+		if n == self or not (n is Node2D):
+			continue
+		var other := n as Node2D
+		var dx    := global_position.x - other.global_position.x
+		var adx   := absf(dx)
+		if adx > 0.001 and adx < crowd_separation_radius:
+			push_x += signf(dx) * (crowd_separation_radius - adx)
 
-    # BUG FIX: separar del player — evita que el enemigo quede parado encima
-    if player and is_instance_valid(player):
-        var pdx := global_position.x - player.global_position.x
-        var adx_p := absf(pdx)
-        var sep := 24.0
-        if adx_p < sep:
-            var push_dir := signf(pdx)
-            # Si están en el mismo x exacto: usar ID para no empujar todos al mismo lado
-            if adx_p < 0.8:
-                push_dir = 1.0 if (int(get_instance_id()) % 2 == 0) else -1.0
-            push_x += push_dir * (sep - adx_p + 4.0) * 2.2
+	if player and is_instance_valid(player):
+		var pdx   := global_position.x - player.global_position.x
+		var adx_p := absf(pdx)
+		var sep   := 24.0
+		if adx_p < sep:
+			var push_dir := signf(pdx)
+			if adx_p < 0.8:
+				push_dir = 1.0 if (int(get_instance_id()) % 2 == 0) else -1.0
+			push_x += push_dir * (sep - adx_p + 4.0) * 2.2
 
-    if push_x != 0.0:
-        velocity.x += push_x * crowd_separation_strength * delta
+	if push_x != 0.0:
+		velocity.x += push_x * crowd_separation_strength * delta
+
 
 func _count_attackers() -> int:
-    var nodes := get_tree().get_nodes_in_group("enemies")
-    var c := 0
-    for n in nodes:
-        if n != null and is_instance_valid(n) and n.has_meta("is_attacking") and bool(n.get_meta("is_attacking")):
-            c += 1
-    return c
+	var nodes := get_tree().get_nodes_in_group("enemies")
+	var c := 0
+	for n in nodes:
+		if n != null and is_instance_valid(n) and \
+				n.has_meta("is_attacking") and bool(n.get_meta("is_attacking")):
+			c += 1
+	return c
+
 
 func _can_attack_now() -> bool:
-    if max_attackers_at_once <= 0:
-        return true
-    return _count_attackers() < max_attackers_at_once
+	if max_attackers_at_once <= 0:
+		return true
+	return _count_attackers() < max_attackers_at_once
+
+
+# --- SpriteGen helper (acceso seguro por ruta de nodo) ---
+func _sg_tex(key: String) -> ImageTexture:
+	var sg := get_node_or_null("/root/SpriteGen")
+	if sg == null or not sg.has_method("get_texture"):
+		return null
+	return sg.call("get_texture", key) as ImageTexture
+
 
 func _find_player() -> Node2D:
-    var nodes := get_tree().get_nodes_in_group("player")
-    if nodes.size() > 0 and nodes[0] is Node2D:
-        return nodes[0]
-    var p := get_parent()
-    if p:
-        var n = p.get_node_or_null("Player")
-        if n and n is Node2D:
-            return n
-    return null
+	var nodes := get_tree().get_nodes_in_group("player")
+	if nodes.size() > 0 and nodes[0] is Node2D:
+		return nodes[0]
+	var p := get_parent()
+	if p:
+		var n = p.get_node_or_null("Player")
+		if n and n is Node2D:
+			return n
+	return null

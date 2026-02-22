@@ -4,9 +4,6 @@ signal hp_changed(new_hp: int, hp_max: int)
 signal combo_changed(step: int)
 
 @export var speed := 170.0
-@export var gravity := 1200.0
-@export var jump_velocity := -420.0
-
 @export var max_hp := 10
 var hp := 10
 
@@ -15,25 +12,21 @@ var invuln := 0.0
 var hurt_timer := 0.0
 var hurt_knock_x := 0.0
 
-var _debug_ticks := true
-
 var last_action := "IDLE"
-# bloquea el auto-switch idle/run por un ratito (para ataques, hurt, etc.)
 var anim_lock := 0.0
 
-# --- STATE (estructura) ---
+# --- STATE ---
 enum State { IDLE, RUN, JUMP, ATK, HEAVY, HURT, KO }
 var state: int = State.IDLE
 
 @export var accel := 1200.0
 @export var friction := 1400.0
-@export var max_fall := 900.0
 
-# salto "pro": coyote + buffer
-@export var coyote_time := 0.10
-@export var jump_buffer := 0.10
-var coyote := 0.0
-var jbuf := 0.0
+# Belt scroller depth movement
+@export var floor_y_min: float = 148.0
+@export var floor_y_max: float = 212.0
+@export var visual_jump_height: float = 55.0
+var is_jumping: bool = false
 
 var action_timer := 0.0
 
@@ -50,294 +43,315 @@ var last_attack_heavy := false
 # evita multi-hit por misma ventana
 var attack_consumed := false
 
-@onready var attack_area: Area2D = $AttackArea 
-@onready var body_poly = $Visual/PlayerBody 
-@onready var cam: Camera2D = $Camera2D 
+@onready var attack_area: Area2D = $AttackArea
+@onready var cam: Camera2D        = $Camera2D
 @onready var anim: AnimationPlayer = $AnimationPlayer
-@onready var floor_ray: RayCast2D = $FloorRay
-@onready var wall_left: RayCast2D = $WallRayLeft
+@onready var wall_left: RayCast2D  = $WallRayLeft
 @onready var wall_right: RayCast2D = $WallRayRight
-@onready var hurt_area: Area2D = $HurtArea
+@onready var hurt_area: Area2D     = $HurtArea
+
+var sprite: Sprite2D = null
+
 
 func _ready() -> void:
-    add_to_group("player")
-    print("✅ Player READY")
-    hp = max_hp
-    hp_changed.emit(hp, max_hp)
-    attack_area.monitoring = false
-    if not attack_area.body_entered.is_connected(_on_attack_area_body_entered):
-        attack_area.body_entered.connect(_on_attack_area_body_entered)
+	add_to_group("player")
+	print("✅ Player READY")
+	hp = max_hp
+	hp_changed.emit(hp, max_hp)
+	attack_area.monitoring = false
+	if not attack_area.body_entered.is_connected(_on_attack_area_body_entered):
+		attack_area.body_entered.connect(_on_attack_area_body_entered)
 
-    if anim:
-        anim.play("idle")
+	sprite = get_node_or_null("Visual/Sprite2D")
+	if sprite:
+		sprite.texture = _sg_tex("player_idle")
+
+	if anim:
+		anim.play("idle")
+
 
 func _physics_process(delta: float) -> void:
-    # invuln NO debe frenar el movimiento, solo evita daño
-    # (el decremento ya lo hacés más abajo con invuln = max(...))
-    if invuln > 0.0:
-        pass
+	if Engine.get_physics_frames() % 30 == 0:
+		if DisplayServer.get_name() != "headless":
+			print("🟦 Player tick pos=", global_position, " vel=", velocity)
 
-    if Engine.get_physics_frames() % 30 == 0:
-        if DisplayServer.get_name() != "headless":
-            print("🟦 Player tick pos=", global_position, " vel=", velocity)
+	# --- INPUT ---
+	var dir   := Input.get_axis("move_left",  "move_right")
+	var move_y := Input.get_axis("move_up",   "move_down")
+	if DisplayServer.get_name() == "headless":
+		dir = 1.0
 
-    # --- INPUT (locals first to avoid parser issues) ---
-    var dir := Input.get_axis("move_left", "move_right")
-    if DisplayServer.get_name() == "headless":
-        dir = 1.0
+	var pressed_jump   := Input.is_action_just_pressed("jump")
+	var pressed_attack := Input.is_action_just_pressed("attack")
+	var pressed_heavy  := Input.is_action_just_pressed("heavy")
 
-    var pressed_jump := Input.is_action_just_pressed("jump")
-    var pressed_attack := Input.is_action_just_pressed("attack")
-    var pressed_heavy := Input.is_action_just_pressed("heavy")
+	# --- TIMERS ---
+	action_timer   = max(0.0, action_timer   - delta)
+	attack_cooldown = max(0.0, attack_cooldown - delta)
+	combo_timer    = max(0.0, combo_timer    - delta)
+	invuln         = max(0.0, invuln         - delta)
+	hurt_timer     = max(0.0, hurt_timer     - delta)
+	anim_lock      = max(0.0, anim_lock      - delta)
 
-    # --- TIMERS ---
-    action_timer = max(0.0, action_timer - delta)
-    attack_cooldown = max(0.0, attack_cooldown - delta)
-    combo_timer = max(0.0, combo_timer - delta)
-    invuln = max(0.0, invuln - delta)
-    hurt_timer = max(0.0, hurt_timer - delta)
-    anim_lock = max(0.0, anim_lock - delta)
+	# --- COMBO EXPIRY ---
+	if combo_step > 0 and combo_timer <= 0.0:
+		combo_step = 0
+		combo_changed.emit(0)
 
-    # --- COMBO EXPIRY ---
-    if combo_step > 0 and combo_timer <= 0.0:
-        combo_step = 0
-        combo_changed.emit(0)
+	if dir < -0.01:
+		facing = -1.0
+	elif dir > 0.01:
+		facing = 1.0
 
-    # --- JUMP BUFFER + COYOTE ---
-    if pressed_jump:
-        jbuf = jump_buffer
-    else:
-        jbuf = max(0.0, jbuf - delta)
+	# --- CONTROL GATE ---
+	var can_control := (hurt_timer <= 0.0) and \
+		(state != State.ATK) and (state != State.HEAVY) and (state != State.KO)
 
-    if is_on_floor():
-        coyote = coyote_time
-    else:
-        coyote = max(0.0, coyote - delta)
+	# heavy (K)
+	if pressed_heavy and attack_cooldown <= 0.0 and can_control:
+		_do_heavy_attack()
 
-    if dir < -0.01:
-            facing = -1.0
-    elif dir > 0.01:
-            facing = 1.0
+	# combo normal (J)
+	if pressed_attack and attack_cooldown <= 0.0 and can_control:
+		_do_combo_attack()
 
-    # --- VISUAL FLIP (arcade) ---
-    if body_poly:
-        body_poly.scale.x = abs(body_poly.scale.x) * facing
+	# salto visual (Space)
+	if pressed_jump and not is_jumping and can_control:
+		_do_visual_jump()
 
-    # --- CONTROL GATE ---
-    var can_control := (hurt_timer <= 0.0) and (state != State.ATK) and (state != State.HEAVY) and (state != State.KO)
+	# --- HORIZONTAL MOVEMENT ---
+	if can_control:
+		if abs(dir) > 0.01:
+			velocity.x = move_toward(velocity.x, dir * speed, accel * delta)
+		else:
+			velocity.x = move_toward(velocity.x, 0.0, friction * delta)
+	else:
+		if state == State.HURT:
+			velocity.x = hurt_knock_x
 
-    # heavy (K)
-    if pressed_heavy and attack_cooldown <= 0.0 and can_control:
-        _do_heavy_attack()
+	# --- DEPTH (Y) MOVEMENT — bloqueado solo en KO ---
+	if state != State.KO:
+		velocity.y = move_y * speed * 0.55
+	else:
+		velocity.y = 0.0
 
-    # combo normal (J)
-    if pressed_attack and attack_cooldown <= 0.0 and can_control:
-        _do_combo_attack()
+	# --- salir de ATK/HEAVY cuando termina el lock ---
+	if anim_lock <= 0.0 and (state == State.ATK or state == State.HEAVY):
+		state = State.IDLE
 
-    if not is_on_floor():
-        velocity.y += gravity * delta
-        if velocity.y > max_fall:
-            velocity.y = max_fall
-    else:
-       if can_control:
-           if jbuf > 0.0 and coyote > 0.0:
-               jbuf = 0.0
-               coyote = 0.0
-               velocity.y = jump_velocity
-               state = State.JUMP
-               _set_action("JUMP", 0.25)
+	# --- estados base ---
+	if state != State.HURT and state != State.KO \
+			and state != State.ATK and state != State.HEAVY:
+		if is_jumping:
+			state = State.JUMP
+		elif abs(velocity.x) > 5.0:
+			state = State.RUN
+		else:
+			state = State.IDLE
 
-    # --- APPLY HORIZONTAL MOVE (mejor control) ---
-    if can_control:
-        if abs(dir) > 0.01:
-            velocity.x = move_toward(velocity.x, dir * speed, accel * delta)
-        else:
-            velocity.x = move_toward(velocity.x, 0.0, friction * delta)
-    else:
-        if state == State.HURT:
-            velocity.x = hurt_knock_x
+	# --- animación básica ---
+	if can_control and anim_lock <= 0.0:
+		if abs(velocity.x) > 1.0 and not is_jumping:
+			if anim and anim.current_animation != "run":
+				anim.play("run")
+		else:
+			if anim and anim.current_animation != "idle":
+				anim.play("idle")
 
-    # --- salir de ATK/HEAVY cuando termina el lock ---
-    if anim_lock <= 0.0 and (state == State.ATK or state == State.HEAVY):
-        state = State.IDLE
+	move_and_slide()
 
-    # --- estados base ---
-    if state != State.HURT and state != State.KO and state != State.ATK and state != State.HEAVY:
-        if not is_on_floor():
-            state = State.JUMP
-        elif abs(velocity.x) > 5.0:
-            state = State.RUN
-        else:
-            state = State.IDLE
+	# Belt scroller: clamp Y, z-index
+	position.y = clamp(position.y, floor_y_min, floor_y_max)
+	z_index = int(global_position.y)
 
-    # --- Basic animation switch ---
-    # No pisar anims de ataque mientras anim_lock > 0
-    if can_control and anim_lock <= 0.0:
-        if abs(velocity.x) > 1.0 and is_on_floor():
-            if anim and anim.current_animation != "run":
-                anim.play("run")
-        else:
-            if anim and anim.current_animation != "idle":
-                    anim.play("idle")
-   
-    # DEBUG piso (cada ~0.5s)
-    if DisplayServer.get_name() != "headless": if Engine.get_physics_frames() % 30 == 0:
-        print("floor=", is_on_floor(), " pos=", global_position, " vel=", velocity)
+	# Actualizar sprite
+	_update_sprite()
 
-    move_and_slide()
+	# Blink invuln — sobre nodo Visual
+	var visual_node := get_node_or_null("Visual")
+	if visual_node:
+		visual_node.visible = \
+			(int(Time.get_ticks_msec() / 80) % 2 == 0) or (invuln <= 0.0)
 
-    if DisplayServer.get_name() != "headless": if Engine.get_physics_frames() % 30 == 0 and floor_ray:
-       print("floor_ray=", floor_ray.is_colliding(), " on_floor=", is_on_floor(), " vel=", velocity)
 
-    # blink invuln
-    body_poly.visible = true if int(Time.get_ticks_msec() / 80) % 2 == 0 or invuln <= 0.0 else false
+# ── Visual jump (sin cambiar posición real) ──────────────────────────────────
+func _do_visual_jump() -> void:
+	is_jumping = true
+	invuln = max(invuln, 0.30)
+	var visual := get_node_or_null("Visual")
+	if visual:
+		var tw := create_tween()
+		tw.tween_property(visual, "position:y", -visual_jump_height, 0.22) \
+			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+		tw.tween_property(visual, "position:y", 0.0, 0.18) \
+			.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+		tw.tween_callback(func(): is_jumping = false)
+	else:
+		await get_tree().create_timer(0.40).timeout
+		is_jumping = false
 
+
+# ── Sprite update ─────────────────────────────────────────────────────────────
+func _update_sprite() -> void:
+	if not sprite:
+		return
+	var state_name := "idle"
+	match state:
+		State.RUN:                  state_name = "walk"
+		State.ATK, State.HEAVY:     state_name = "attack"
+		State.HURT, State.KO:       state_name = "hurt"
+		State.JUMP:                 state_name = "idle"
+	sprite.texture = _sg_tex("player_" + state_name)
+	sprite.flip_h  = (facing < 0)
+
+
+# ── Ataques ───────────────────────────────────────────────────────────────────
 func _do_heavy_attack() -> void:
-    state = State.HEAVY
-    anim_lock = 0.26
-    last_attack_heavy = true
-    combo_step = 0
-    combo_timer = 0.0
-    current_damage = 2
-    current_knock = 420.0
-    current_lift = 420.0
+	state = State.HEAVY
+	anim_lock = 0.26
+	last_attack_heavy = true
+	combo_step  = 0
+	combo_timer = 0.0
+	current_damage = 2
+	current_knock  = 420.0
+	current_lift   = 420.0
 
-    # --- A4PRO: lock + anim ---
-    anim_lock = 0.26
-    if anim and anim.has_animation("heavy"):
-        anim.play("heavy")
+	if anim and anim.has_animation("heavy"):
+		anim.play("heavy")
 
-    _set_action("HEAVY", 0.26)
-    attack_cooldown = 0.22
-    _do_attack_window()
+	_set_action("HEAVY", 0.26)
+	attack_cooldown = 0.22
+	_do_attack_window()
+
 
 func _do_combo_attack() -> void:
-    state = State.ATK
-    anim_lock = 0.18
-    last_attack_heavy = false
+	state = State.ATK
+	anim_lock = 0.18
+	last_attack_heavy = false
 
-    # Si se venció la ventana, reinicia el combo
-    if combo_timer <= 0.0:
-        combo_step = 1
-    else:
-        combo_step += 1
-        if combo_step > 3:
-            combo_step = 1
+	if combo_timer <= 0.0:
+		combo_step = 1
+	else:
+		combo_step += 1
+		if combo_step > 3:
+			combo_step = 1
 
-    # --- A4PRO: lock + anim de combo ---
-    anim_lock = 0.18
-    if anim:
-        # Si existen anims por golpe, mejor:
-        if combo_step == 1 and anim.has_animation("atk1"):
-            anim.play("atk1")
-        elif combo_step == 2 and anim.has_animation("atk2"):
-            anim.play("atk2")
-        elif combo_step == 3 and anim.has_animation("atk3"):
-            anim.play("atk3")
-        elif anim.has_animation("attack"):
-            anim.play("attack")
+	if anim:
+		if combo_step == 1 and anim.has_animation("atk1"):
+			anim.play("atk1")
+		elif combo_step == 2 and anim.has_animation("atk2"):
+			anim.play("atk2")
+		elif combo_step == 3 and anim.has_animation("atk3"):
+			anim.play("atk3")
+		elif anim.has_animation("attack"):
+			anim.play("attack")
 
-    combo_changed.emit(combo_step)
+	combo_changed.emit(combo_step)
 
-    # Aplicar stats por golpe
-    if combo_step == 1:
-        current_damage = 1
-        current_knock = 220.0
-        current_lift = 0.0
-        _set_action("ATK1", 0.18)
-    elif combo_step == 2:
-        current_damage = 1
-        current_knock = 260.0
-        current_lift = 0.0
-        _set_action("ATK2", 0.18)
-    else:
-        current_damage = 2
-        current_knock = 360.0
-        current_lift = 180.0
-        _set_action("ATK3", 0.22)
+	if combo_step == 1:
+		current_damage = 1
+		current_knock  = 220.0
+		current_lift   = 0.0
+		_set_action("ATK1", 0.18)
+	elif combo_step == 2:
+		current_damage = 1
+		current_knock  = 260.0
+		current_lift   = 0.0
+		_set_action("ATK2", 0.18)
+	else:
+		current_damage = 2
+		current_knock  = 360.0
+		current_lift   = 180.0
+		_set_action("ATK3", 0.22)
 
-    attack_cooldown = 0.12
-    combo_timer = combo_window
-    _do_attack_window()
+	attack_cooldown = 0.12
+	combo_timer = combo_window
+	_do_attack_window()
+
 
 func _do_attack_window() -> void:
-    attack_consumed = false
-    attack_area.position.x = 18.0 * facing
-    attack_area.set_deferred("monitoring", true)
+	attack_consumed = false
+	attack_area.position.x = 18.0 * facing
+	attack_area.set_deferred("monitoring", true)
 
-    # Esperar 1 frame de física para que el motor compute overlaps
-    await get_tree().physics_frame
+	await get_tree().physics_frame
 
-    # Si ya estaba solapando, body_entered no siempre dispara: pegamos por overlap también
-    var bodies: Array[Node2D] = attack_area.get_overlapping_bodies()
-    for b in bodies:
-        if attack_consumed:
-            break
-        _on_attack_area_body_entered(b)
+	var bodies: Array[Node2D] = attack_area.get_overlapping_bodies()
+	for b in bodies:
+		if attack_consumed:
+			break
+		_on_attack_area_body_entered(b)
 
-    # Ventana activa del hitbox (por si entra alguien durante el golpe)
-    await get_tree().create_timer(0.10).timeout
-    attack_area.set_deferred("monitoring", false)
+	await get_tree().create_timer(0.10).timeout
+	attack_area.set_deferred("monitoring", false)
+
 
 func _on_attack_area_body_entered(body: Node) -> void:
-    if body == self:
-        return
-    if body.has_method("take_hit") and not attack_consumed:
-        attack_consumed = true
-        body.take_hit(facing, current_knock, current_damage, current_lift)
+	if body == self:
+		return
+	if body.has_method("take_hit") and not attack_consumed:
+		attack_consumed = true
+		body.take_hit(facing, current_knock, current_damage, current_lift)
 
-        # hitstop si existe
-        var main: Node = get_tree().current_scene
-        if main and main.has_method("hitstop"):
-            if last_attack_heavy:
-                main.hitstop(0.09, 0.04)
-            else:
-                main.hitstop(0.05, 0.08)
+		var main: Node = get_tree().current_scene
+		if main and main.has_method("hitstop"):
+			if last_attack_heavy:
+				main.hitstop(0.09, 0.04)
+			else:
+				main.hitstop(0.05, 0.08)
 
-        # shake si existe
-        if last_attack_heavy and has_method("_shake_cam"):
-            _shake_cam(4.0, 0.11)
+		if last_attack_heavy and has_method("_shake_cam"):
+			_shake_cam(4.0, 0.11)
+
 
 func take_damage(from_dir: float, dmg: int = 1, knock: float = 180.0) -> void:
-    if invuln > 0.0:
-        return
-    hp -= dmg
-    hp_changed.emit(hp, max_hp)
-    invuln = 0.8
-    hurt_timer = 0.10
-    hurt_knock_x = knock * from_dir
-    _set_action("HURT", 0.25)
-    if hp <= 0:
-        hp = 0
-        state = State.KO
-        _set_action("KO", 1.0)
+	if invuln > 0.0:
+		return
+	hp -= dmg
+	hp_changed.emit(hp, max_hp)
+	invuln    = 0.8
+	hurt_timer = 0.10
+	hurt_knock_x = knock * from_dir
+	_set_action("HURT", 0.25)
+	if hp <= 0:
+		hp = 0
+		state = State.KO
+		_set_action("KO", 1.0)
 
-        var main := get_tree().current_scene
-        if main and main.has_method("on_player_died"):
-            main.call_deferred("on_player_died")
-        else:
-            # fallback ultra seguro
-            get_tree().reload_current_scene()
-        return
+		var main := get_tree().current_scene
+		if main and main.has_method("on_player_died"):
+			main.call_deferred("on_player_died")
+		else:
+			get_tree().reload_current_scene()
+		return
+
 
 func _set_action(name: String, seconds: float) -> void:
-    last_action = name
-    action_timer = seconds
+	last_action  = name
+	action_timer = seconds
 
-# --- Camera shake helper (seguro) ---
+
+# --- SpriteGen helper (acceso seguro por ruta de nodo) ---
+func _sg_tex(key: String) -> ImageTexture:
+	var sg := get_node_or_null("/root/SpriteGen")
+	if sg == null or not sg.has_method("get_texture"):
+		return null
+	return sg.call("get_texture", key) as ImageTexture
+
+
+# --- Camera shake helper ---
 func _shake_cam(intensity: float = 3.0, duration: float = 0.10) -> void:
-    if not cam:
-        return
-    var base: Vector2 = cam.position
-    var steps: int = 6
-    var step_t: float = duration / float(steps)
-    if step_t < 0.01:
-        step_t = 0.01
-    for i in range(steps):
-        var off: Vector2 = Vector2(
-            randf_range(-intensity, intensity),
-            randf_range(-intensity, intensity)
-        )
-        cam.position = base + off
-        await get_tree().create_timer(step_t).timeout
-    cam.position = base
+	if not cam:
+		return
+	var base: Vector2 = cam.position
+	var steps := 6
+	var step_t := duration / float(steps)
+	if step_t < 0.01:
+		step_t = 0.01
+	for _i in range(steps):
+		cam.position = base + Vector2(
+			randf_range(-intensity, intensity),
+			randf_range(-intensity, intensity)
+		)
+		await get_tree().create_timer(step_t).timeout
+	cam.position = base

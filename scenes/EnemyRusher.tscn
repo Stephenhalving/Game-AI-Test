@@ -1,4 +1,4 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/EnemyRusher.gd" id="1_enemy"]
 
@@ -6,20 +6,22 @@
 size = Vector2(14, 24)
 
 [sub_resource type="RectangleShape2D" id=2]
-size = Vector2(22, 18)
+size = Vector2(22, 48)
 
 [node name="Enemy" type="CharacterBody2D"]
 script = ExtResource("1_enemy")
 collision_layer = 4
 collision_mask = 6
 
-[node name="EnemyBody" type="Polygon2D" parent="."]
-polygon = PackedVector2Array(-7, -12, 7, -12, 7, 12, -7, 12)
-color = Color(1, 0.25, 0.1, 1)
+[node name="Shadow" type="Polygon2D" parent="."]
+z_index = -1
+polygon = PackedVector2Array(-8, -1, 8, -1, 8, 1, -8, 1)
+color = Color(0, 0, 0, 0.35)
 
-[node name="EnemyHead" type="Polygon2D" parent="."]
-polygon = PackedVector2Array(-5, -22, 5, -22, 5, -14, -5, -14)
-color = Color(1, 0.55, 0.4, 1)
+[node name="Visual" type="Node2D" parent="."]
+
+[node name="Sprite2D" type="Sprite2D" parent="Visual"]
+position = Vector2(0, -16)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("1")

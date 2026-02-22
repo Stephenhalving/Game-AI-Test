@@ -53,6 +53,7 @@ color = Color(0.14, 0.12, 0.18, 1)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Ground" unique_id=36612411]
 shape = SubResource("2")
+disabled = true
 
 [node name="LeftWall" type="StaticBody2D" parent="." unique_id=845234340]
 position = Vector2(-140, 0)
@@ -80,6 +81,7 @@ visible = false
 [node name="CollisionShape2D" type="CollisionShape2D" parent="PlatformB" unique_id=1214789850]
 position = Vector2(-23, -36)
 shape = SubResource("12")
+disabled = true
 
 [node name="Visual" type="Polygon2D" parent="PlatformB" unique_id=846774476]
 position = Vector2(-22, -36)
@@ -101,6 +103,7 @@ polygon = PackedVector2Array(-90, -7, 90, -7, 89, 5, 0, 5, -90, 5)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="PlatformTest" unique_id=374472142]
 shape = SubResource("12")
+disabled = true
 
 [node name="PlatformTest2" type="StaticBody2D" parent="." groups=["arena_c1","arena_c2"]]
 visible = false
@@ -119,6 +122,7 @@ polygon = PackedVector2Array(-233, 25, -148, 25, -99, 25, -53, 25, -53, 31, -52,
 [node name="CollisionShape2D" type="CollisionShape2D" parent="PlatformTest2" unique_id=587928266]
 position = Vector2(-144, 30)
 shape = SubResource("13")
+disabled = true
 
 [node name="ArenaTrigger" type="Area2D" parent="." unique_id=781897593]
 position = Vector2(300, 190)

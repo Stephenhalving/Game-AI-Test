@@ -89,6 +89,7 @@ collision_mask = 6
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="GroundLeft"]
 shape = SubResource("ground_a")
+disabled = true
 
 [node name="Vis" type="Polygon2D" parent="GroundLeft"]
 polygon = PackedVector2Array(-470, -40, 470, -40, 470, 40, -470, 40)
@@ -101,6 +102,7 @@ collision_mask = 6
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="GroundRight"]
 shape = SubResource("ground_b")
+disabled = true
 
 [node name="Vis" type="Polygon2D" parent="GroundRight"]
 polygon = PackedVector2Array(-1980, -40, 1980, -40, 1980, 40, -1980, 40)
@@ -155,6 +157,7 @@ collision_mask = 6
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="PlatformA"]
 shape = SubResource("plat_std")
+disabled = true
 
 [node name="Vis" type="Polygon2D" parent="PlatformA"]
 polygon = PackedVector2Array(-60, -7, 60, -7, 60, 7, -60, 7)
@@ -167,6 +170,7 @@ collision_mask = 6
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="PlatformB"]
 shape = SubResource("plat_std")
+disabled = true
 
 [node name="Vis" type="Polygon2D" parent="PlatformB"]
 polygon = PackedVector2Array(-60, -7, 60, -7, 60, 7, -60, 7)
@@ -179,6 +183,7 @@ collision_mask = 6
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="PlatformC"]
 shape = SubResource("plat_wide")
+disabled = true
 
 [node name="Vis" type="Polygon2D" parent="PlatformC"]
 polygon = PackedVector2Array(-80, -7, 80, -7, 80, 7, -80, 7)
@@ -191,6 +196,7 @@ collision_mask = 6
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="PlatformD"]
 shape = SubResource("plat_std")
+disabled = true
 
 [node name="Vis" type="Polygon2D" parent="PlatformD"]
 polygon = PackedVector2Array(-60, -7, 60, -7, 60, 7, -60, 7)
@@ -203,6 +209,7 @@ collision_mask = 6
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="PlatformE"]
 shape = SubResource("plat_narrow")
+disabled = true
 
 [node name="Vis" type="Polygon2D" parent="PlatformE"]
 polygon = PackedVector2Array(-40, -7, 40, -7, 40, 7, -40, 7)
@@ -215,6 +222,7 @@ collision_mask = 6
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="PlatformF"]
 shape = SubResource("plat_std")
+disabled = true
 
 [node name="Vis" type="Polygon2D" parent="PlatformF"]
 polygon = PackedVector2Array(-60, -7, 60, -7, 60, 7, -60, 7)
@@ -227,6 +235,7 @@ collision_mask = 6
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="PlatformG"]
 shape = SubResource("plat_wide")
+disabled = true
 
 [node name="Vis" type="Polygon2D" parent="PlatformG"]
 polygon = PackedVector2Array(-80, -7, 80, -7, 80, 7, -80, 7)
@@ -239,6 +248,7 @@ collision_mask = 6
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="PlatformH"]
 shape = SubResource("plat_std")
+disabled = true
 
 [node name="Vis" type="Polygon2D" parent="PlatformH"]
 polygon = PackedVector2Array(-60, -7, 60, -7, 60, 7, -60, 7)
@@ -251,6 +261,7 @@ collision_mask = 6
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="PlatformI"]
 shape = SubResource("plat_narrow")
+disabled = true
 
 [node name="Vis" type="Polygon2D" parent="PlatformI"]
 polygon = PackedVector2Array(-40, -7, 40, -7, 40, 7, -40, 7)
@@ -263,6 +274,7 @@ collision_mask = 6
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="PlatformJ"]
 shape = SubResource("plat_std")
+disabled = true
 
 [node name="Vis" type="Polygon2D" parent="PlatformJ"]
 polygon = PackedVector2Array(-60, -7, 60, -7, 60, 7, -60, 7)
@@ -275,6 +287,7 @@ collision_mask = 6
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="PlatformK"]
 shape = SubResource("plat_wide")
+disabled = true
 
 [node name="Vis" type="Polygon2D" parent="PlatformK"]
 polygon = PackedVector2Array(-80, -7, 80, -7, 80, 7, -80, 7)
@@ -287,6 +300,7 @@ collision_mask = 6
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="PlatformL"]
 shape = SubResource("plat_std")
+disabled = true
 
 [node name="Vis" type="Polygon2D" parent="PlatformL"]
 polygon = PackedVector2Array(-60, -7, 60, -7, 60, 7, -60, 7)
@@ -299,6 +313,7 @@ collision_mask = 6
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="PlatformM"]
 shape = SubResource("plat_narrow")
+disabled = true
 
 [node name="Vis" type="Polygon2D" parent="PlatformM"]
 polygon = PackedVector2Array(-40, -7, 40, -7, 40, 7, -40, 7)
