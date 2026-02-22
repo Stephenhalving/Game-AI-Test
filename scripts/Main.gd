@@ -424,10 +424,15 @@ func _spawn_enemy_from_path(scene_path: String) -> void:
     arena_enemies.append(enemy)
     print("🧪 SPAWN_TRACKED: arena_enemies=", arena_enemies.size(), " wave_left=", arena_wave_left)
 
-    # conectar died -> handler (UNA sola vez)
+    # conectar died -> score + loot + contador de wave
     if enemy.has_signal("died"):
-        if not enemy.died.is_connected(_on_arena_enemy_died):
-            enemy.died.connect(_on_arena_enemy_died)
+        enemy.died.connect(func():
+            add_score(100)
+            if is_instance_valid(enemy):
+                call_deferred("_drop_loot", enemy.global_position)
+            arena_enemies.erase(enemy)
+            _on_arena_enemy_died()
+        )
 
     # z para verse arriba
     if enemy is CanvasItem:
