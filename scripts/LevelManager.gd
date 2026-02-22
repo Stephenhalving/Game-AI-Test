@@ -4,10 +4,9 @@ class_name LevelManager
 var current_level: int = 0
 var last_score: int = 0
 
-# Por ahora, Level 1 y Level 2 apuntan al mismo Main.
 var level_scenes: Array[String] = [
     "res://scenes/Main.tscn",
-    "res://scenes/Main.tscn",
+    "res://scenes/Main2.tscn",
 ]
 
 func reset() -> void:

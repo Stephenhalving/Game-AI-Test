@@ -1,0 +1,140 @@
+[gd_scene format=3]
+
+[sub_resource type="RectangleShape2D" id="ground_shape"]
+size = Vector2(2000, 80)
+
+[sub_resource type="RectangleShape2D" id="wall_shape"]
+size = Vector2(40, 600)
+
+[sub_resource type="RectangleShape2D" id="plat_wide"]
+size = Vector2(200, 12)
+
+[sub_resource type="RectangleShape2D" id="plat_mid"]
+size = Vector2(160, 12)
+
+[sub_resource type="RectangleShape2D" id="trigger_shape"]
+size = Vector2(200, 12)
+
+[node name="Level2" type="Node2D"]
+
+[node name="Ground" type="StaticBody2D" parent="."]
+position = Vector2(200, 220)
+collision_layer = 4
+collision_mask = 6
+
+[node name="GroundBody" type="Polygon2D" parent="Ground"]
+polygon = PackedVector2Array(-1000, -40, 1000, -40, 1000, 40, -1000, 40)
+color = Color(0.22, 0.22, 0.3, 1)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Ground"]
+shape = SubResource("ground_shape")
+
+[node name="LeftWall" type="StaticBody2D" parent="."]
+position = Vector2(-140, 0)
+collision_layer = 4
+collision_mask = 6
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="LeftWall"]
+shape = SubResource("wall_shape")
+
+[node name="RightWall" type="StaticBody2D" parent="."]
+position = Vector2(620, 0)
+collision_layer = 4
+collision_mask = 6
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="RightWall"]
+shape = SubResource("wall_shape")
+
+[node name="PlatformTest" type="StaticBody2D" parent="."]
+visible = false
+position = Vector2(195, 168)
+collision_layer = 4
+collision_mask = 6
+
+[node name="Visual" type="Polygon2D" parent="PlatformTest"]
+polygon = PackedVector2Array(-100, -6, 100, -6, 100, 6, -100, 6)
+color = Color(1, 0.55, 0.15, 0.9)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="PlatformTest"]
+shape = SubResource("plat_wide")
+
+[node name="PlatformTest2" type="StaticBody2D" parent="."]
+visible = false
+position = Vector2(385, 138)
+collision_layer = 4
+collision_mask = 6
+
+[node name="Visual" type="Polygon2D" parent="PlatformTest2"]
+polygon = PackedVector2Array(-80, -6, 80, -6, 80, 6, -80, 6)
+color = Color(0.1, 0.75, 0.8, 0.9)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="PlatformTest2"]
+shape = SubResource("plat_mid")
+
+[node name="PlatformB" type="StaticBody2D" parent="."]
+visible = false
+position = Vector2(182, 148)
+collision_layer = 4
+collision_mask = 6
+
+[node name="Visual" type="Polygon2D" parent="PlatformB"]
+polygon = PackedVector2Array(-80, -6, 80, -6, 80, 6, -80, 6)
+color = Color(0.85, 0.2, 0.7, 0.9)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="PlatformB"]
+shape = SubResource("plat_mid")
+
+[node name="PlatformVar2" type="StaticBody2D" parent="."]
+visible = false
+position = Vector2(285, 128)
+collision_layer = 4
+collision_mask = 6
+
+[node name="Visual" type="Polygon2D" parent="PlatformVar2"]
+polygon = PackedVector2Array(-90, -6, 90, -6, 90, 6, -90, 6)
+color = Color(0.35, 0.95, 0.15, 0.9)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="PlatformVar2"]
+shape = SubResource("plat_wide")
+
+[node name="PlatformVar3" type="StaticBody2D" parent="."]
+visible = false
+position = Vector2(420, 150)
+collision_layer = 4
+collision_mask = 6
+
+[node name="Visual" type="Polygon2D" parent="PlatformVar3"]
+polygon = PackedVector2Array(-80, -6, 80, -6, 80, 6, -80, 6)
+color = Color(0.95, 0.35, 0.1, 0.9)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="PlatformVar3"]
+shape = SubResource("plat_mid")
+
+[node name="ArenaTrigger" type="Area2D" parent="."]
+position = Vector2(260, 188)
+collision_layer = 0
+collision_mask = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="ArenaTrigger"]
+shape = SubResource("trigger_shape")
+
+[node name="ArenaSpawnLeft" type="Node2D" parent="." groups=["arena_spawn"]]
+position = Vector2(70, 170)
+
+[node name="ArenaSpawnRight" type="Node2D" parent="." groups=["arena_spawn"]]
+position = Vector2(460, 170)
+
+[node name="ArenaSpawnCenter" type="Node2D" parent="." groups=["arena_spawn"]]
+position = Vector2(260, 170)
+
+[node name="ArenaSpawnVar2A" type="Node2D" parent="." groups=["arena_spawn", "arena_var_2"]]
+position = Vector2(150, 118)
+
+[node name="ArenaSpawnVar2B" type="Node2D" parent="." groups=["arena_spawn", "arena_var_2"]]
+position = Vector2(385, 118)
+
+[node name="ArenaSpawnVar3A" type="Node2D" parent="." groups=["arena_spawn", "arena_var_3"]]
+position = Vector2(90, 148)
+
+[node name="ArenaSpawnVar3B" type="Node2D" parent="." groups=["arena_spawn", "arena_var_3"]]
+position = Vector2(440, 140)

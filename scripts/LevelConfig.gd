@@ -12,9 +12,9 @@ static func get_level(level: int) -> Dictionary:
         "loot_coin_chance": 0.50,
         "loot_food_chance": 0.25,
     }
-    # Si más adelante querés variar el Level 2:
     if level == 2:
         base["max_enemies"] = 3
+        base["enemy_weights"] = { "rusher": 0.25, "tank": 0.4, "ranged": 0.35 }
     return base
 
 
