@@ -27,6 +27,7 @@ shape = SubResource("1")
 [node name="AttackArea" type="Area2D" parent="."]
 monitoring = false
 collision_layer = 4
+collision_mask = 2
 
 [node name="AttackCollision" type="CollisionShape2D" parent="AttackArea"]
 shape = SubResource("2")

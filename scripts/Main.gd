@@ -105,7 +105,8 @@ func _ready() -> void:
         if player and player.has_signal("combo_changed"):
             player.combo_changed.connect(hud._on_combo_changed)
 
-    _spawn_to_max()
+    # Mostrar plataformas del stage 1 inmediatamente (sin esperar al arena)
+    _apply_arena_variation(arena_cycle)
 
     if run_headless_test:
         print("🧪 HEADLESS: forcing arena start for test")
@@ -438,7 +439,7 @@ func _spawn_enemy_from_path(scene_path: String) -> void:
 
     # spawn point + entrada con tween
     var sp: Node2D = _pick_arena_spawn_point()
-    var pos: Vector2 = sp.global_position if sp != null else Vector2.ZERO
+    var pos: Vector2 = sp.global_position if sp != null else Vector2(240, 170)
 
     # clamp arena bounds si existen
     pos.x = clamp(pos.x, ARENA_SPAWN_MIN_X, ARENA_SPAWN_MAX_X)
@@ -566,6 +567,9 @@ func _pick_arena_spawn_point() -> Node2D:
 
     if pool.size() <= 0:
         pool = arena_spawn_points
+    if pool.size() <= 0:
+        push_warning("⚠️ No arena spawn points found! Using center fallback.")
+        return null
 
     var sp: Node = pool[randi() % pool.size()]
     return sp as Node2D
