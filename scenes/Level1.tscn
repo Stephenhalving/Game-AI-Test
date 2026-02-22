@@ -17,6 +17,11 @@ size = Vector2(176, 12.75)
 
 [node name="Level1" type="Node2D" unique_id=1190374941]
 
+[node name="Background" type="Polygon2D" parent="."]
+z_index = -10
+polygon = PackedVector2Array(-700, -400, 1300, -400, 1300, 500, -700, 500)
+color = Color(0.08, 0.1, 0.18, 1)
+
 [node name="Ground" type="StaticBody2D" parent="." unique_id=415027582]
 position = Vector2(200, 220)
 collision_layer = 4

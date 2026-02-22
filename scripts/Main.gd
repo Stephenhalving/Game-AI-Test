@@ -275,11 +275,14 @@ func _start_arena() -> void:
     arena_wave_index = 0
     arena_total_waves = 3 # por ahora fijo
 
-    # --- Arena layout variation by cycle (level_id) ---
+    # --- Arena layout variation by cycle ---
     _apply_arena_variation(arena_cycle)
-     
+
+    # Deshabilitar trigger para que no se re-dispare durante el arena
+    if arena_trigger:
+        arena_trigger.set_deferred("monitoring", false)
+
     _lock_door(true)
-    print("🧪 DEBUG: calling _spawn_next_wave() now. arena_active=", arena_active, " wave_index=", arena_wave_index)
     _spawn_next_wave()
 
 func _spawn_next_wave():
@@ -577,51 +580,43 @@ func on_level_complete() -> void:
     # En headless dejamos que siga (para tests) pero no hacemos cambio de escena
     var is_headless := DisplayServer.get_name() == "headless"
 
-    # Si todavía no completamos las 3 secciones del Level 1, avanzamos a la siguiente “zona”
     if arena_cycle < 3:
         if not is_headless:
-            print("🚪 EXIT -> NEXT SECTION (cycle=", arena_cycle, ")")
+            print(“🚪 STAGE “, arena_cycle, “ -> STAGE “, arena_cycle + 1)
 
-        # Preparar próxima sección: volver a habilitar trigger de arena y resetear estado
+        arena_cycle += 1  # incrementar aquí, no en _finish_arena
         arena_active = false
         arena_cleared = false
         arena_waiting_next_wave = false
         arena_wave_left = 0
         arena_wave_index = 0
 
-        # Cerrar puerta para el próximo tramo
-        _lock_door(true)
-
-        # (Opcional) limpiar enemigos arena que quedaron vivos por seguridad
         for e in arena_enemies:
             if e and is_instance_valid(e):
                 e.queue_free()
         arena_enemies.clear()
 
-        # Reiniciar enemigos legacy también (por seguridad)
         for e2 in enemies:
             if e2 and is_instance_valid(e2):
                 e2.queue_free()
         enemies.clear()
 
-        # Pequeño delay para que el motor procese frees
         await get_tree().process_frame
-
-        # Arrancar arena de la siguiente sección (va a aplicar variación por arena_cycle)
-        call_deferred("_start_arena")
+        call_deferred(“_start_arena”)
         return
 
-    # --- Si arena_cycle >= 3, recién ahí terminamos el Level 1 (demo) ---
+    # arena_cycle >= 3 → todos los stages completos → siguiente nivel
     if is_headless:
         return
 
     add_score(250)
-    print("✅ LEVEL 1 CLEAR +250 (demo end)")
+    print(“✅ NIVEL COMPLETO +250”)
     await get_tree().create_timer(0.6).timeout
 
-    var lm := get_node_or_null("/root/LevelManagerAuto")
+    var lm := get_node_or_null(“/root/LevelManagerAuto”)
     if lm:
-        lm.call_deferred("next_level")
+        lm.set(“last_score”, score)
+        lm.call_deferred(“next_level”)
     else:
         get_tree().reload_current_scene()
 
@@ -738,39 +733,33 @@ func _on_arena_enemy_died(_arg = null) -> void:
         _spawn_next_wave()
 
 func _finish_arena() -> void:
-    print("🧪 DEBUG: _finish_arena() called. wave_index=", arena_wave_index, " wave_left=", arena_wave_left)
+    print("🧩 _finish_arena() cycle=", arena_cycle)
 
-    # Stop arena state
     arena_active = false
     arena_starting = false
     arena_wave_left = 0
 
-    # Limpieza defensiva (por si algo quedó trackeado)
     for e in arena_enemies:
         if is_instance_valid(e):
             e.queue_free()
     arena_enemies.clear()
 
-    # Avanzar ciclo (1->2, 2->3) pero NO reiniciar automático.
-    if arena_cycle < 3:
-        arena_cycle += 1
-        arena_cleared = false  # rearmar: se podrá iniciar el próximo ciclo cuando re-entre al trigger
-
-        _apply_arena_variation(arena_cycle)
-        print("🧩 arena_cycle now =", arena_cycle, " (waiting for player to re-enter trigger)")
-        return
-
-    # Cycle 3 = final del stage
-    arena_cleared = true
-
-    # Apagar trigger para que nunca más reinicie este stage
-    if arena_trigger:
-        arena_trigger.set_deferred("monitoring", false)
-
     if hud and hud.has_method("clear_enemy_hp"):
         hud.clear_enemy_hp()
 
-    print("🏁 STAGE COMPLETE (cycle 3). Enable exit/door here.")
+    if arena_cycle < 3:
+        # Stage clear: abrir puerta — on_level_complete() arrancará el siguiente stage
+        arena_cleared = false
+        _lock_door(false)
+        print("🧩 Stage ", arena_cycle, " complete — abrí puerta, pasá al siguiente stage")
+        return
+
+    # Los 3 stages terminaron — fin del nivel
+    arena_cleared = true
+    if arena_trigger:
+        arena_trigger.set_deferred("monitoring", false)
+    _lock_door(false)
+    print("🏁 TODOS LOS STAGES COMPLETOS — puerta abierta para salir del nivel")
 
 func _grant_arena_key() -> void:
     if has_key:
