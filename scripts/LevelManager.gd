@@ -2,6 +2,7 @@ extends Node
 class_name LevelManager
 
 var current_level: int = 0
+var last_score: int = 0
 
 # Por ahora, Level 1 y Level 2 apuntan al mismo Main.
 var level_scenes: Array[String] = [
@@ -11,6 +12,7 @@ var level_scenes: Array[String] = [
 
 func reset() -> void:
     current_level = 0
+    last_score = 0
 
 func start_game() -> void:
     reset()
@@ -30,11 +32,10 @@ func next_level() -> void:
     goto_level(current_level + 1)
 
 func game_over() -> void:
-    print("🏁 GAME OVER / GAME COMPLETE")
-    if ResourceLoader.exists("res://scenes/Menu.tscn"):
-        get_tree().change_scene_to_file("res://scenes/Menu.tscn")
-    else:
-        get_tree().quit()
+    print("🏁 GAME OVER score=", last_score)
+    get_tree().paused = false
+    Engine.time_scale = 1.0
+    get_tree().change_scene_to_file("res://scenes/GameOver.tscn")
 
 
 

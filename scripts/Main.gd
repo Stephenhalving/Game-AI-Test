@@ -619,9 +619,17 @@ func on_level_complete() -> void:
         get_tree().reload_current_scene()
 
 func on_player_died() -> void:
-    print("🔁 RESTARTING SCENE...")
-    await get_tree().create_timer(0.8).timeout
-    get_tree().reload_current_scene()
+    print("💀 PLAYER DIED score=", score)
+    get_tree().paused = false
+    Engine.time_scale = 1.0
+    var lm := get_node_or_null("/root/LevelManagerAuto")
+    if lm:
+        lm.set("last_score", score)
+        await get_tree().create_timer(0.8, true).timeout
+        lm.call_deferred("game_over")
+    else:
+        await get_tree().create_timer(0.8, true).timeout
+        get_tree().change_scene_to_file("res://scenes/GameOver.tscn")
 
 # --- Floating damage text (reusable) ---
 func spawn_damage_text(pos: Vector2, amount: int) -> void:
