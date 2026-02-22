@@ -1,10 +1,10 @@
 [gd_scene format=3]
 
-[sub_resource type="RectangleShape2D" id="ground_left"]
+[sub_resource type="RectangleShape2D" id="ground_a"]
 size = Vector2(940, 80)
 
-[sub_resource type="RectangleShape2D" id="ground_right"]
-size = Vector2(1160, 80)
+[sub_resource type="RectangleShape2D" id="ground_b"]
+size = Vector2(3960, 80)
 
 [sub_resource type="RectangleShape2D" id="wall_shape"]
 size = Vector2(40, 600)
@@ -19,20 +19,68 @@ size = Vector2(10, 120)
 size = Vector2(120, 14)
 
 [sub_resource type="RectangleShape2D" id="plat_wide"]
-size = Vector2(140, 14)
+size = Vector2(160, 14)
+
+[sub_resource type="RectangleShape2D" id="plat_narrow"]
+size = Vector2(80, 14)
 
 [sub_resource type="RectangleShape2D" id="switch_shape"]
 size = Vector2(90, 60)
 
-[sub_resource type="RectangleShape2D" id="mini_trig_shape"]
-size = Vector2(200, 80)
+[sub_resource type="RectangleShape2D" id="trig_std"]
+size = Vector2(160, 80)
 
 [node name="Level_Stage2" type="Node2D"]
 
 [node name="Background" type="Polygon2D" parent="."]
 z_index = -10
-polygon = PackedVector2Array(-200, -400, 2300, -400, 2300, 500, -200, 500)
-color = Color(0.07, 0.05, 0.08, 1)
+polygon = PackedVector2Array(-200, -400, 5000, -400, 5000, 500, -200, 500)
+color = Color(0.05, 0.03, 0.12, 1)
+
+[node name="BldgA" type="Polygon2D" parent="."]
+z_index = -8
+polygon = PackedVector2Array(-100, 180, 0, 180, 0, -100, -40, -100, -40, -220, -80, -220, -80, -100, -100, -100)
+color = Color(0.08, 0.05, 0.16, 1)
+
+[node name="BldgB" type="Polygon2D" parent="."]
+z_index = -8
+polygon = PackedVector2Array(300, 180, 420, 180, 420, -60, 380, -60, 380, -160, 340, -160, 340, -60, 300, -60)
+color = Color(0.1, 0.06, 0.18, 1)
+
+[node name="BldgC" type="Polygon2D" parent="."]
+z_index = -8
+polygon = PackedVector2Array(850, 180, 960, 180, 960, -80, 920, -80, 920, -200, 880, -200, 880, -80, 850, -80)
+color = Color(0.08, 0.05, 0.16, 1)
+
+[node name="BldgD" type="Polygon2D" parent="."]
+z_index = -8
+polygon = PackedVector2Array(1200, 180, 1340, 180, 1340, -40, 1300, -40, 1300, -180, 1250, -180, 1250, -40, 1200, -40)
+color = Color(0.1, 0.06, 0.18, 1)
+
+[node name="BldgE" type="Polygon2D" parent="."]
+z_index = -8
+polygon = PackedVector2Array(1800, 180, 1920, 180, 1920, -120, 1870, -120, 1870, -240, 1840, -240, 1840, -120, 1800, -120)
+color = Color(0.08, 0.05, 0.16, 1)
+
+[node name="BldgF" type="Polygon2D" parent="."]
+z_index = -8
+polygon = PackedVector2Array(2400, 180, 2540, 180, 2540, -60, 2500, -60, 2500, -200, 2460, -200, 2460, -60, 2400, -60)
+color = Color(0.1, 0.06, 0.18, 1)
+
+[node name="BldgG" type="Polygon2D" parent="."]
+z_index = -8
+polygon = PackedVector2Array(3100, 180, 3240, 180, 3240, -80, 3200, -80, 3200, -220, 3160, -220, 3160, -80, 3100, -80)
+color = Color(0.08, 0.05, 0.16, 1)
+
+[node name="BldgH" type="Polygon2D" parent="."]
+z_index = -8
+polygon = PackedVector2Array(3800, 180, 3940, 180, 3940, -100, 3900, -100, 3900, -240, 3860, -240, 3860, -100, 3800, -100)
+color = Color(0.1, 0.06, 0.18, 1)
+
+[node name="NeonLine" type="Polygon2D" parent="."]
+z_index = -6
+polygon = PackedVector2Array(-200, 182, 5000, 182, 5000, 184, -200, 184)
+color = Color(0.6, 0.0, 1.0, 0.45)
 
 [node name="GroundLeft" type="StaticBody2D" parent="."]
 position = Vector2(370, 220)
@@ -40,23 +88,23 @@ collision_layer = 4
 collision_mask = 6
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="GroundLeft"]
-shape = SubResource("ground_left")
+shape = SubResource("ground_a")
 
 [node name="Vis" type="Polygon2D" parent="GroundLeft"]
 polygon = PackedVector2Array(-470, -40, 470, -40, 470, 40, -470, 40)
-color = Color(0.22, 0.20, 0.24, 1)
+color = Color(0.14, 0.12, 0.18, 1)
 
 [node name="GroundRight" type="StaticBody2D" parent="."]
-position = Vector2(1510, 220)
+position = Vector2(2900, 220)
 collision_layer = 4
 collision_mask = 6
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="GroundRight"]
-shape = SubResource("ground_right")
+shape = SubResource("ground_b")
 
 [node name="Vis" type="Polygon2D" parent="GroundRight"]
-polygon = PackedVector2Array(-580, -40, 580, -40, 580, 40, -580, 40)
-color = Color(0.22, 0.20, 0.24, 1)
+polygon = PackedVector2Array(-1980, -40, 1980, -40, 1980, 40, -1980, 40)
+color = Color(0.14, 0.12, 0.18, 1)
 
 [node name="LeftWall" type="StaticBody2D" parent="."]
 position = Vector2(-160, 0)
@@ -67,7 +115,7 @@ collision_mask = 6
 shape = SubResource("wall_shape")
 
 [node name="RightWall" type="StaticBody2D" parent="."]
-position = Vector2(2150, 0)
+position = Vector2(4900, 0)
 collision_layer = 4
 collision_mask = 6
 
@@ -86,7 +134,7 @@ disabled = true
 
 [node name="Vis" type="Polygon2D" parent="BridgeFloor"]
 polygon = PackedVector2Array(-45, -6, 45, -6, 45, 6, -45, 6)
-color = Color(0.5, 0.75, 0.5, 1)
+color = Color(0.0, 1.0, 0.45, 0.9)
 
 [node name="BridgeBarrier" type="StaticBody2D" parent="."]
 position = Vector2(843, 190)
@@ -98,7 +146,7 @@ shape = SubResource("barrier_shape")
 
 [node name="Vis" type="Polygon2D" parent="BridgeBarrier"]
 polygon = PackedVector2Array(-5, -60, 5, -60, 5, 60, -5, 60)
-color = Color(0.7, 0.15, 0.15, 0.9)
+color = Color(1.0, 0.15, 0.1, 0.9)
 
 [node name="PlatformA" type="StaticBody2D" parent="."]
 position = Vector2(240, 172)
@@ -110,7 +158,7 @@ shape = SubResource("plat_std")
 
 [node name="Vis" type="Polygon2D" parent="PlatformA"]
 polygon = PackedVector2Array(-60, -7, 60, -7, 60, 7, -60, 7)
-color = Color(0.35, 0.35, 0.6, 0.9)
+color = Color(0.0, 0.9, 1.0, 0.92)
 
 [node name="PlatformB" type="StaticBody2D" parent="."]
 position = Vector2(430, 148)
@@ -122,7 +170,7 @@ shape = SubResource("plat_std")
 
 [node name="Vis" type="Polygon2D" parent="PlatformB"]
 polygon = PackedVector2Array(-60, -7, 60, -7, 60, 7, -60, 7)
-color = Color(0.35, 0.35, 0.6, 0.9)
+color = Color(1.0, 0.0, 0.8, 0.92)
 
 [node name="PlatformC" type="StaticBody2D" parent="."]
 position = Vector2(660, 120)
@@ -133,8 +181,8 @@ collision_mask = 6
 shape = SubResource("plat_wide")
 
 [node name="Vis" type="Polygon2D" parent="PlatformC"]
-polygon = PackedVector2Array(-70, -7, 70, -7, 70, 7, -70, 7)
-color = Color(0.3, 0.6, 0.35, 0.9)
+polygon = PackedVector2Array(-80, -7, 80, -7, 80, 7, -80, 7)
+color = Color(1.0, 0.9, 0.0, 0.92)
 
 [node name="PlatformD" type="StaticBody2D" parent="."]
 position = Vector2(1100, 160)
@@ -146,7 +194,7 @@ shape = SubResource("plat_std")
 
 [node name="Vis" type="Polygon2D" parent="PlatformD"]
 polygon = PackedVector2Array(-60, -7, 60, -7, 60, 7, -60, 7)
-color = Color(0.35, 0.35, 0.6, 0.9)
+color = Color(0.0, 1.0, 0.45, 0.92)
 
 [node name="PlatformE" type="StaticBody2D" parent="."]
 position = Vector2(1330, 135)
@@ -154,11 +202,107 @@ collision_layer = 4
 collision_mask = 6
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="PlatformE"]
-shape = SubResource("plat_std")
+shape = SubResource("plat_narrow")
 
 [node name="Vis" type="Polygon2D" parent="PlatformE"]
+polygon = PackedVector2Array(-40, -7, 40, -7, 40, 7, -40, 7)
+color = Color(1.0, 0.3, 0.0, 0.92)
+
+[node name="PlatformF" type="StaticBody2D" parent="."]
+position = Vector2(1700, 120)
+collision_layer = 4
+collision_mask = 6
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="PlatformF"]
+shape = SubResource("plat_std")
+
+[node name="Vis" type="Polygon2D" parent="PlatformF"]
 polygon = PackedVector2Array(-60, -7, 60, -7, 60, 7, -60, 7)
-color = Color(0.35, 0.35, 0.6, 0.9)
+color = Color(0.0, 0.9, 1.0, 0.92)
+
+[node name="PlatformG" type="StaticBody2D" parent="."]
+position = Vector2(1950, 145)
+collision_layer = 4
+collision_mask = 6
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="PlatformG"]
+shape = SubResource("plat_wide")
+
+[node name="Vis" type="Polygon2D" parent="PlatformG"]
+polygon = PackedVector2Array(-80, -7, 80, -7, 80, 7, -80, 7)
+color = Color(1.0, 0.0, 0.8, 0.92)
+
+[node name="PlatformH" type="StaticBody2D" parent="."]
+position = Vector2(2350, 165)
+collision_layer = 4
+collision_mask = 6
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="PlatformH"]
+shape = SubResource("plat_std")
+
+[node name="Vis" type="Polygon2D" parent="PlatformH"]
+polygon = PackedVector2Array(-60, -7, 60, -7, 60, 7, -60, 7)
+color = Color(1.0, 0.9, 0.0, 0.92)
+
+[node name="PlatformI" type="StaticBody2D" parent="."]
+position = Vector2(2650, 130)
+collision_layer = 4
+collision_mask = 6
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="PlatformI"]
+shape = SubResource("plat_narrow")
+
+[node name="Vis" type="Polygon2D" parent="PlatformI"]
+polygon = PackedVector2Array(-40, -7, 40, -7, 40, 7, -40, 7)
+color = Color(0.0, 1.0, 0.45, 0.92)
+
+[node name="PlatformJ" type="StaticBody2D" parent="."]
+position = Vector2(2950, 155)
+collision_layer = 4
+collision_mask = 6
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="PlatformJ"]
+shape = SubResource("plat_std")
+
+[node name="Vis" type="Polygon2D" parent="PlatformJ"]
+polygon = PackedVector2Array(-60, -7, 60, -7, 60, 7, -60, 7)
+color = Color(1.0, 0.3, 0.0, 0.92)
+
+[node name="PlatformK" type="StaticBody2D" parent="."]
+position = Vector2(3300, 120)
+collision_layer = 4
+collision_mask = 6
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="PlatformK"]
+shape = SubResource("plat_wide")
+
+[node name="Vis" type="Polygon2D" parent="PlatformK"]
+polygon = PackedVector2Array(-80, -7, 80, -7, 80, 7, -80, 7)
+color = Color(0.0, 0.9, 1.0, 0.92)
+
+[node name="PlatformL" type="StaticBody2D" parent="."]
+position = Vector2(3600, 145)
+collision_layer = 4
+collision_mask = 6
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="PlatformL"]
+shape = SubResource("plat_std")
+
+[node name="Vis" type="Polygon2D" parent="PlatformL"]
+polygon = PackedVector2Array(-60, -7, 60, -7, 60, 7, -60, 7)
+color = Color(1.0, 0.0, 0.8, 0.92)
+
+[node name="PlatformM" type="StaticBody2D" parent="."]
+position = Vector2(3900, 165)
+collision_layer = 4
+collision_mask = 6
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="PlatformM"]
+shape = SubResource("plat_narrow")
+
+[node name="Vis" type="Polygon2D" parent="PlatformM"]
+polygon = PackedVector2Array(-40, -7, 40, -7, 40, 7, -40, 7)
+color = Color(1.0, 0.9, 0.0, 0.92)
 
 [node name="SwitchZone" type="Area2D" parent="."]
 position = Vector2(800, 192)
@@ -172,10 +316,26 @@ shape = SubResource("switch_shape")
 polygon = PackedVector2Array(-12, -12, 12, -12, 12, 12, -12, 12)
 color = Color(1.0, 0.9, 0.1, 1)
 
+[node name="EncounterTrigger1" type="Area2D" parent="."]
+position = Vector2(1550, 192)
+collision_layer = 0
+collision_mask = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="EncounterTrigger1"]
+shape = SubResource("trig_std")
+
 [node name="MiniEncounterTrigger" type="Area2D" parent="."]
-position = Vector2(1490, 192)
+position = Vector2(2200, 192)
 collision_layer = 0
 collision_mask = 2
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="MiniEncounterTrigger"]
-shape = SubResource("mini_trig_shape")
+shape = SubResource("trig_std")
+
+[node name="EncounterTrigger2" type="Area2D" parent="."]
+position = Vector2(3100, 192)
+collision_layer = 0
+collision_mask = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="EncounterTrigger2"]
+shape = SubResource("trig_std")

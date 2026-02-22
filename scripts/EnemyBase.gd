@@ -246,25 +246,33 @@ func _flash() -> void:
     modulate = old
 
 func _apply_crowd_separation(delta: float) -> void:
-    # Empuje suave para que no se apilen encima del player ni entre ellos
-    var nodes := get_tree().get_nodes_in_group("enemies")
-    if nodes.size() <= 1:
-        return
+    var push_x := 0.0
 
-    var push := 0.0
+    # Separar de otros enemigos
+    var nodes := get_tree().get_nodes_in_group("enemies")
     for n in nodes:
-        if n == self:
-            continue
-        if not (n is Node2D):
+        if n == self or not (n is Node2D):
             continue
         var other := n as Node2D
         var dx := global_position.x - other.global_position.x
         var adx := absf(dx)
         if adx > 0.001 and adx < crowd_separation_radius:
-            push += signf(dx) * (crowd_separation_radius - adx)
+            push_x += signf(dx) * (crowd_separation_radius - adx)
 
-    if push != 0.0:
-        velocity.x += push * crowd_separation_strength * delta
+    # BUG FIX: separar del player — evita que el enemigo quede parado encima
+    if player and is_instance_valid(player):
+        var pdx := global_position.x - player.global_position.x
+        var adx_p := absf(pdx)
+        var sep := 24.0
+        if adx_p < sep:
+            var push_dir := signf(pdx)
+            # Si están en el mismo x exacto: usar ID para no empujar todos al mismo lado
+            if adx_p < 0.8:
+                push_dir = 1.0 if (int(get_instance_id()) % 2 == 0) else -1.0
+            push_x += push_dir * (sep - adx_p + 4.0) * 2.2
+
+    if push_x != 0.0:
+        velocity.x += push_x * crowd_separation_strength * delta
 
 func _count_attackers() -> int:
     var nodes := get_tree().get_nodes_in_group("enemies")

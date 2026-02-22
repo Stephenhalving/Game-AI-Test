@@ -118,4 +118,4 @@ offset_bottom = 94.0
 text = "KEY: NO"
 
 [node name="Door" parent="." instance=ExtResource("4_door")]
-position = Vector2(2150, 158)
+position = Vector2(4950, 158)
